@@ -1,0 +1,84 @@
+---
+- name: Backup Cisco Switch Configuration - Enhanced for DoD
+  hosts: SWITCH-2960
+  gather_facts: true
+  vars:
+    backup_dir: "/opt/canes/persistent_data/{{ inventory_hostname }}"
+    timestamp: "{{ ansible_date_time.epoch }}"
+  
+  tasks:
+    - name: Create backup directory structure
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0750'
+      delegate_to: localhost
+      run_once: true
+    
+    - name: Gather switch information
+      cisco.ios.ios_facts:
+        gather_subset:
+          - hardware
+          - interfaces
+          - config
+      register: switch_facts
+    
+    - name: Get running configuration
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+          - show version
+          - show inventory
+          - show ip interface brief
+      register: config_data
+    
+    - name: Save running configuration
+      copy:
+        content: "{{ config_data.stdout[0] }}"
+        dest: "{{ backup_dir }}/running-config_{{ timestamp }}.txt"
+        mode: '0640'
+      delegate_to: localhost
+    
+    - name: Save version information
+      copy:
+        content: "{{ config_data.stdout[1] }}"
+        dest: "{{ backup_dir }}/version_info_{{ timestamp }}.txt"
+        mode: '0640'
+      delegate_to: localhost
+    
+    - name: Save inventory information
+      copy:
+        content: "{{ config_data.stdout[2] }}"
+        dest: "{{ backup_dir }}/inventory_{{ timestamp }}.txt"
+        mode: '0640'
+      delegate_to: localhost
+    
+    - name: Save interface status
+      copy:
+        content: "{{ config_data.stdout[3] }}"
+        dest: "{{ backup_dir }}/interface_status_{{ timestamp }}.txt"
+        mode: '0640'
+      delegate_to: localhost
+    
+    - name: Create backup summary
+      copy:
+        content: |
+          Backup Summary for {{ inventory_hostname }}
+          ==========================================
+          Backup Date: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+          Device Type: {{ switch_facts.ansible_facts.ansible_net_model | default('Unknown') }}
+          Serial Number: {{ switch_facts.ansible_facts.ansible_net_serialnum | default('Unknown') }}
+          IOS Version: {{ switch_facts.ansible_facts.ansible_net_version | default('Unknown') }}
+          
+          Files Backed Up:
+          - running-config_{{ timestamp }}.txt
+          - version_info_{{ timestamp }}.txt
+          - inventory_{{ timestamp }}.txt
+          - interface_status_{{ timestamp }}.txt
+        dest: "{{ backup_dir }}/backup_summary_{{ timestamp }}.txt"
+        mode: '0640'
+      delegate_to: localhost
+    
+    - name: Log backup completion
+      debug:
+        msg: "Configuration backup completed for {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }}"
