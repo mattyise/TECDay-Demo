@@ -4,45 +4,36 @@
   gather_facts: false
   vars:
     datacenter_name: "CANES"
-    template_name: "RHEL_9_TEMPLATE"
-    vm_name: "TECDay_Rhel_Demo"
-    vm_folder: "/TECDay Demo"
-    cluster_name: "CANES"
-    datastore_name: "DATA_vSAN"
-    network_name: "VL181_App-164.191.65.0_24"
+    vm_name: "rhel_demo"
     vm_ip: "164.191.65.50"
-    vm_netmask: "255.255.255.0"
-    vm_gateway: "164.191.65.1"
-    vm_dns_servers:
-      - "164.191.65.6"
-      - "164.191.65.7"
-    vm_domain: "cvn9001.navy.mil"
     
   tasks:
     - name: Clone the VM from template
       community.vmware.vmware_guest:
         validate_certs: false
         name: "{{ vm_name }}"
-        template: "{{ template_name }}"
+        template: "RHEL_9_TEMPLATE"
         datacenter: "{{ datacenter_name }}"
-        folder: "{{ vm_folder }}"
-        cluster: "{{ cluster_name }}"
-        datastore: "{{ datastore_name }}"
+        folder: "/TECDay Demo"
+        cluster: "CANES"
+        datastore: "DATA_vSAN"
         state: poweredon
         hardware:
           memory_mb: 12288
           num_cpus: 4
           scsi: paravirtual
         networks:
-          - name: "{{ network_name }}"
+          - name: "VL181_App-164.191.65.0_24"
             ip: "{{ vm_ip }}"
-            netmask: "{{ vm_netmask }}"
-            gateway: "{{ vm_gateway }}"
+            netmask: "255.255.255.0"
+            gateway: "164.191.65.1"
             type: static
             start_connected: true
         customization:
-          dns_servers: "{{ vm_dns_servers }}"
-          dns_suffix: "{{ vm_domain }}"
+          dns_servers:
+            - "164.191.65.6"
+            - "164.191.65.7"
+          dns_suffix: "cvn9001.navy.mil"
           hostname: "{{ vm_name }}"
         wait_for_ip_address: true
         wait_for_customization: true
@@ -56,7 +47,7 @@
           - "IP Address: {{ vm_ip }}"
           - "CPU: 4 cores"
           - "Memory: 12GB"
-          - "Network: {{ network_name }}"
+          - "Network: VL181_App-164.191.65.0_24"
     
     - name: Wait for VM to be accessible via SSH
       wait_for:

@@ -1,0 +1,178 @@
+---
+- name: Apply RHEL STIGs - Basic Security Hardening
+  hosts: rhel_demo
+  become: yes
+  vars:
+    # STIG-compliant login banner message
+    login_banner: |
+      You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+      By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+      - The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to,
+        penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE),
+        and counterintelligence (CI) investigations.
+      - At any time, the USG may inspect and seize data stored on this IS.
+      - Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception,
+        and search, and may be disclosed or used for any USG-authorized purpose.
+      - This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your
+        personal benefit or privacy.
+      - Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or
+        monitoring of the content of privileged communications, or work product, related to personal representation or services
+        by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and
+        confidential. See User Agreement for details.
+
+  tasks:
+    - name: STIG V-71859 - Set SSH login banner
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Banner'
+        line: 'Banner /etc/issue'
+        state: present
+      notify: restart sshd
+
+    - name: STIG V-71861 - Create login banner file
+      copy:
+        content: "{{ login_banner }}"
+        dest: /etc/issue
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: STIG V-71863 - Set console login banner
+      copy:
+        content: "{{ login_banner }}"
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: STIG V-71953 - Set password minimum length
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*minlen'
+        line: 'minlen = 15'
+        state: present
+
+    - name: STIG V-71911 - Set password complexity requirements
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?\s*dcredit', line: 'dcredit = -1' }  # At least 1 digit
+        - { regexp: '^#?\s*ucredit', line: 'ucredit = -1' }  # At least 1 uppercase
+        - { regexp: '^#?\s*lcredit', line: 'lcredit = -1' }  # At least 1 lowercase
+        - { regexp: '^#?\s*ocredit', line: 'ocredit = -1' }  # At least 1 special char
+
+    - name: STIG V-71931 - Set password history (remembered passwords)
+      lineinfile:
+        path: /etc/security/pwhistory.conf
+        regexp: '^#?\s*remember'
+        line: 'remember = 5'
+        state: present
+        create: yes
+
+    - name: STIG V-71965 - Disable ctrl-alt-del reboot
+      systemd:
+        name: ctrl-alt-del.target
+        masked: yes
+        daemon_reload: yes
+
+    - name: STIG V-71993 - Set shell timeout
+      blockinfile:
+        path: /etc/profile.d/tmout.sh
+        create: yes
+        mode: '0644'
+        block: |
+          # Set 15 minute timeout for shell sessions
+          TMOUT=900
+          readonly TMOUT
+          export TMOUT
+
+    - name: STIG V-72225 - Ensure system is up to date
+      yum:
+        name: '*'
+        state: latest
+      tags: updates
+
+    - name: STIG V-72067 - Disable unnecessary services
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+        masked: yes
+      loop:
+        - telnet.socket
+        - rsh.socket
+        - rlogin.socket
+        - rexec.socket
+      ignore_errors: yes  # Some services may not exist
+
+    - name: STIG V-72077 - Enable firewall
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: STIG V-71969 - Configure firewall default zone
+      firewalld:
+        state: enabled
+        permanent: yes
+        zone: drop
+        immediate: yes
+
+    - name: STIG V-71849 - Set proper permissions on system files
+      file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: '/etc/passwd', mode: '0644' }
+        - { path: '/etc/shadow', mode: '0000' }
+        - { path: '/etc/group', mode: '0644' }
+        - { path: '/etc/gshadow', mode: '0000' }
+
+    - name: STIG V-71937 - Set account lockout after failed attempts
+      lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+        create: yes
+      loop:
+        - { regexp: '^#?\s*deny', line: 'deny = 3' }          # Lock after 3 failed attempts
+        - { regexp: '^#?\s*unlock_time', line: 'unlock_time = 900' }  # 15 minute lockout
+        - { regexp: '^#?\s*fail_interval', line: 'fail_interval = 900' }  # Within 15 minutes
+
+    - name: Create STIG compliance report
+      copy:
+        content: |
+          STIG Compliance Report
+          ======================
+          Date: {{ ansible_date_time.iso8601 }}
+          Host: {{ ansible_hostname }}
+          
+          Applied STIGs:
+          - V-71859/V-71861/V-71863: Login banners configured
+          - V-71953: Password minimum length set to 15
+          - V-71911: Password complexity requirements enabled
+          - V-71931: Password history set to remember 5
+          - V-71965: Ctrl-Alt-Del reboot disabled
+          - V-71993: Shell timeout set to 15 minutes
+          - V-72225: System updates applied
+          - V-72067: Insecure services disabled
+          - V-72077: Firewall enabled
+          - V-71969: Firewall default deny configured
+          - V-71849: System file permissions secured
+          - V-71937: Account lockout policy configured
+        dest: /root/stig_compliance_report.txt
+        owner: root
+        group: root
+        mode: '0600'
+
+  handlers:
+    - name: restart sshd
+      systemd:
+        name: sshd
+        state: restarted
