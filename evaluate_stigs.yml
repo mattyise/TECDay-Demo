@@ -8,7 +8,7 @@
     # Override destinations to save locally instead of FS01
     windows_destination_path: ""  # Empty string to skip Windows transfer
     linux_destination_path: "/home/admin/Desktop"
-    persistent_data: "/opt/persistent_data"  # Adjust this path as needed for demo
+    persistent_data: "/opt/canes/persistent_data"  # Adjust this path as needed for demo
 
   # Perform prerequisite checks to ensure execution of roles will run and 
   # load variables depending on CANES enclaves and baseline
