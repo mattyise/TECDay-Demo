@@ -61,7 +61,7 @@
     - name: Wait for VM network connectivity
       wait_for:
         host: "{{ vm_ip }}"
-        port: 3389  # RDP port is more reliable to check initial connectivity
+        port: 5985  # WinRM HTTP port
         delay: 60
         timeout: 300
         state: started
