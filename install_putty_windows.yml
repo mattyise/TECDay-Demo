@@ -1,0 +1,172 @@
+---
+- name: Install and Configure PuTTY on Windows Demo Host
+  hosts: windows-demo
+  gather_facts: true
+  vars:
+    putty_installer_path: "/opt/canes/persistent_data/software/dsl/putty-64bit-0.81-installer.msi"
+    
+  tasks:
+    - name: Display system information
+      debug:
+        msg:
+          - "Operating System: {{ ansible_os_family }}"
+          - "Windows Version: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Hostname: {{ ansible_hostname }}"
+          - "Domain: {{ ansible_domain }}"
+          
+    - name: Check if PuTTY is already installed
+      win_reg_stat:
+        path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1
+      register: putty_installed
+      
+    - name: Display PuTTY installation status
+      debug:
+        msg: "PuTTY is {{ 'already installed' if putty_installed.exists else 'not installed' }}"
+        
+    - name: Create temp directory for installer
+      win_file:
+        path: C:\temp\software
+        state: directory
+        
+    - name: Copy PuTTY installer to Windows host
+      win_copy:
+        src: "{{ putty_installer_path }}"
+        dest: C:\temp\software\putty-installer.msi
+      when: not putty_installed.exists
+      
+    - name: Install PuTTY using win_package
+      win_package:
+        path: C:\temp\software\putty-installer.msi
+        state: present
+        arguments: /quiet /norestart
+        product_id: '{1E0D5689-75F1-4F2F-B4FE-9F1E8E1A8E6C}'
+      register: putty_install
+      when: not putty_installed.exists
+      
+    - name: Wait for installation to complete
+      win_wait_for:
+        path: 'C:\Program Files\PuTTY\putty.exe'
+        state: present
+        timeout: 60
+      when: putty_install is changed
+      
+    - name: Add PuTTY to system PATH
+      win_path:
+        elements:
+          - 'C:\Program Files\PuTTY'
+        state: present
+        scope: system
+      register: path_update
+      
+    - name: Create PuTTY sessions registry key
+      win_regedit:
+        path: HKCU:\Software\SimonTatham\PuTTY\Sessions
+        state: present
+        
+    - name: Configure a sample SSH session for demonstration
+      win_regedit:
+        path: HKCU:\Software\SimonTatham\PuTTY\Sessions\DemoSSHServer
+        name: "{{ item.name }}"
+        data: "{{ item.data }}"
+        type: "{{ item.type }}"
+      loop:
+        - { name: "HostName", data: "demo.example.com", type: "string" }
+        - { name: "PortNumber", data: 22, type: "dword" }
+        - { name: "Protocol", data: "ssh", type: "string" }
+        - { name: "UserName", data: "demouser", type: "string" }
+        - { name: "Colour0", data: "187,187,187", type: "string" }
+        - { name: "Colour1", data: "255,255,255", type: "string" }
+        - { name: "Colour2", data: "0,0,0", type: "string" }
+        - { name: "Colour3", data: "85,85,85", type: "string" }
+        - { name: "FontName", data: "Consolas", type: "string" }
+        - { name: "FontHeight", data: 12, type: "dword" }
+        
+    - name: Create desktop shortcut for PuTTY
+      win_shortcut:
+        src: 'C:\Program Files\PuTTY\putty.exe'
+        dest: 'C:\Users\Public\Desktop\PuTTY.lnk'
+        description: 'PuTTY SSH Client'
+        icon: 'C:\Program Files\PuTTY\putty.exe,0'
+        
+    - name: Check Windows Defender exclusions
+      win_shell: Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+      register: defender_exclusions
+      changed_when: false
+      
+    - name: Add PuTTY to Windows Defender exclusions
+      win_shell: Add-MpPreference -ExclusionPath "C:\Program Files\PuTTY"
+      when: '"C:\\Program Files\\PuTTY" not in defender_exclusions.stdout'
+      
+    - name: Create custom event log entry for installation
+      win_eventlog_entry:
+        log: Application
+        source: Ansible
+        event_id: 1000
+        message: "PuTTY has been installed successfully by Ansible on {{ ansible_hostname }}"
+        entry_type: Information
+        
+    - name: Get PuTTY executable information
+      win_stat:
+        path: 'C:\Program Files\PuTTY\putty.exe'
+      register: putty_exe_info
+      
+    - name: Create installation report
+      win_copy:
+        content: |
+          PuTTY Installation Report
+          ========================
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }}
+          
+          Installation Details:
+          - Hostname: {{ ansible_hostname }}
+          - Domain: {{ ansible_domain }}
+          - Windows Version: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          - PuTTY Version: 0.81
+          - Installation Path: C:\Program Files\PuTTY
+          - Executable Size: {{ putty_exe_info.stat.size }} bytes
+          - Executable Modified: {{ putty_exe_info.stat.mtime }}
+          
+          Configuration:
+          - Added to System PATH: {{ 'Yes' if path_update is changed else 'Already in PATH' }}
+          - Desktop Shortcut Created: Yes
+          - Sample SSH Session Created: DemoSSHServer
+          - Windows Defender Exclusion: Added
+          
+          Post-Installation Actions:
+          - Users can now run 'putty' from any command prompt
+          - Desktop shortcut available for all users
+          - Sample session 'DemoSSHServer' pre-configured
+        dest: C:\temp\software\putty_installation_report.txt
+        
+    - name: Test PuTTY command availability
+      win_shell: |
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        where.exe putty
+      register: putty_location
+      changed_when: false
+      
+    - name: Display installation summary
+      debug:
+        msg:
+          - "===== PuTTY Installation Complete ====="
+          - "PuTTY has been successfully installed"
+          - "Location: {{ putty_location.stdout_lines[0] | default('C:\\Program Files\\PuTTY\\putty.exe') }}"
+          - "Desktop shortcut created for all users"
+          - "Sample SSH session 'DemoSSHServer' configured"
+          - "Installation report saved to: C:\\temp\\software\\putty_installation_report.txt"
+          - ""
+          - "Additional tools installed with PuTTY:"
+          - "  - PSCP: Secure copy client"
+          - "  - PSFTP: Secure FTP client"
+          - "  - Plink: Command line interface to PuTTY"
+          - "  - Pageant: SSH authentication agent"
+          - "  - PuTTYgen: Key generator utility"
+          
+    - name: Cleanup installer file
+      win_file:
+        path: C:\temp\software\putty-installer.msi
+        state: absent
+      when: putty_install is changed
+      tags: cleanup
