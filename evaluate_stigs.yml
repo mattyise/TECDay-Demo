@@ -72,10 +72,8 @@
         name: "evaluate_stig"
       vars:
         phase_path: 'Single_Reports'
-        # Ensure we don't try to transfer to FS01
-        transfer_host: ""
-        transfer_user: ""
-        transfer_password: ""
+        # Skip transfer by not defining transfer_host
+        # This will cause the transfer blocks to be skipped
       when: evaluate is true
     
     - name: Display evaluation results location

@@ -18,7 +18,7 @@
 # transfer_password)
 - name: Execute Evaluate STIG tasks against Linux
   ansible.builtin.include_tasks: 
-    file: linux.yml
+    file: "{{ 'linux_local.yml' if (transfer_host is not defined or transfer_host == '') else 'linux.yml' }}"
   vars:
     execution_path: '{{ ansible_facts["env"]["XDG_RUNTIME_DIR"] }}'
     destination_path: '/tmp'
