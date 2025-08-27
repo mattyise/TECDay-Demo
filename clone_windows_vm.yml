@@ -12,7 +12,7 @@
       community.vmware.vmware_guest:
         validate_certs: false
         name: "{{ vm_name }}"
-        template: "__W2K16E64_UNCLASS_Template"
+        template: "WIN2K19_TEMPLATE"
         datacenter: "{{ datacenter_name }}"
         folder: "/TECDay Demo"
         cluster: "CANES"
