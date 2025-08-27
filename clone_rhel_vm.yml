@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     datacenter_name: "CANES"
-    template_name: "__Rhel7_64_UNCLASS_Template"
+    template_name: "RHEL_9_TEMPLATE"
     vm_name: "TECDay_Rhel_Demo"
     vm_folder: "/TECDay Demo"
     cluster_name: "CANES"
