@@ -171,22 +171,18 @@
   block:
     - name: Ensure destination folder exists locally
       ansible.builtin.file:
-        path: '{{ linux_destination_path }}/{{ phase_path }}'
+        path: '{{ linux_destination_path }}/{{ phase_path }}/{{ inventory_hostname | upper }}'
         state: directory
         owner: admin
         group: admin
         mode: '0755'
-      become: yes
+      become: true
 
     - name: Copy results to desktop
-      ansible.builtin.copy:
-        src: '{{ destination_path }}/{{ inventory_hostname | upper }}/'
-        dest: '{{ linux_destination_path }}/{{ phase_path }}/'
-        remote_src: yes
-        owner: admin
-        group: admin
-        mode: '0644'
-      become: yes
+      ansible.builtin.shell: |
+        cp -r {{ destination_path }}/{{ inventory_hostname | upper }}/* {{ linux_destination_path }}/{{ phase_path }}/{{ inventory_hostname | upper }}/
+        chown -R admin:admin {{ linux_destination_path }}/{{ phase_path }}/{{ inventory_hostname | upper }}
+      become: true
   when:
     - stig_result is not failed or "Failed" in stig_result.stderr
 
