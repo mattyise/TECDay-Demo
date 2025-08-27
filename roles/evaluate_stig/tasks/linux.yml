@@ -149,270 +149,34 @@
   ignore_errors: true
   become: true
 
-- block:
-    - name: Remove Evaluate Tool from fapolicyd
-      ansible.builtin.shell: fapolicyd-cli --file delete '{{ execution_path }}/{{ most_recent_evaluate_stig_binary.path | basename | regex_replace(".zip$", "") }}'
-      register: fapolicyd_result
-      failed_when: fapolicyd_result.stderr != "" and "After removing duplicates, there is nothing to add" not in fapolicyd_result.stderr
-      become: true
-
-    - name: Restart fapolicyd
-      ansible.builtin.service:
-        name: fapolicyd
-        state: restarted
-      become: true
-  when:
-    - "'fapolicyd.service' in ansible_facts.services"
-    - ansible_facts.services['fapolicyd.service'].status == 'enabled'
-    - ansible_facts.services['fapolicyd.service'].state == 'running'
-
-# Process the results
-# Zip contents for transport to a Windows destination path, such as FS01 share drive in CANES environment
-# using the sa.adp service account whose password is available in the aap_service_accounts credential
-# The target host, user, and password can be changed if targeting another Windows host other than FS01
-- name: Process Evaluate-STIG Results for Windows Transfer
-  block:
-    - name: Archive Evaluate-STIG Results
-      ansible.builtin.archive:
-        path: '{{ destination_path }}/{{ inventory_hostname | upper }}'
-        dest: '{{ destination_path }}/{{ inventory_hostname }}.zip'
-        format: zip
-
-    - name: Create temporary results directory
-      ansible.builtin.file:
-        path: '{{ destination_path }}/results/'
-        state: directory
-      delegate_to: localhost
-
-    - name: Fetch Evaluate-STIG Results Archive
-      ansible.builtin.fetch:
-        src: '{{ destination_path }}/{{ inventory_hostname }}.zip'
-        dest: '{{ destination_path }}/results/'
-        flat: true
-
-    - name: Ensure destination folder exists on {{ transfer_host }}
-      ansible.windows.win_file:
-        path: '{{ windows_destination_path }}/{{ phase_path }}'
-        state: directory
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}@{{ fqdn | upper }}'
-        ansible_become_user: '{{ user_domain | upper }}\{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_method: 'runas'
-        ansible_become_flags: 'logon_type: new_credentials logon_flags: netcredentials_only'
-        ansible_connection: 'winrm'
-        ansible_port: 5986
-        ansible_winrm_kerberos_delegation: true
-        ansible_winrm_server_cert_validation: 'ignore'
-        ansible_winrm_transport: 'kerberos'
-
-    - name: Transfer results to {{ transfer_host }}
-      ansible.windows.win_copy:
-        src: '{{ destination_path }}/results/{{ inventory_hostname }}.zip'
-        dest: '{{ windows_destination_path }}'
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}@{{ fqdn | upper }}'
-        ansible_become_user: '{{ user_domain | upper }}\{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_method: 'runas'
-        ansible_become_flags: 'logon_type: new_credentials logon_flags: netcredentials_only'
-        ansible_connection: 'winrm'
-        ansible_port: 5986
-        ansible_winrm_kerberos_delegation: true
-        ansible_winrm_server_cert_validation: 'ignore'
-        ansible_winrm_transport: 'kerberos'
-
-    - name: Extract the ZIP file on {{ transfer_host }}
-      community.windows.win_unzip:
-        src: '{{ windows_destination_path }}/{{ inventory_hostname }}.zip'
-        dest: '{{ windows_destination_path }}/{{ phase_path }}'
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}@{{ fqdn | upper }}'
-        ansible_become_user: '{{ user_domain | upper }}\{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_method: 'runas'
-        ansible_become_flags: 'logon_type: new_credentials logon_flags: netcredentials_only'
-        ansible_connection: 'winrm'
-        ansible_port: 5986
-        ansible_winrm_kerberos_delegation: true
-        ansible_winrm_server_cert_validation: 'ignore'
-        ansible_winrm_transport: 'kerberos'
-
-    - name: Remove the zip file results from {{ transfer_host }}
-      ansible.windows.win_file:
-        path: '{{ windows_destination_path }}/{{ inventory_hostname }}.zip'
-        state: absent
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}@{{ fqdn | upper }}'
-        ansible_become_user: '{{ user_domain | upper }}\{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_method: 'runas'
-        ansible_become_flags: 'logon_type: new_credentials logon_flags: netcredentials_only'
-        ansible_connection: 'winrm'
-        ansible_port: 5986
-        ansible_winrm_kerberos_delegation: true
-        ansible_winrm_server_cert_validation: 'ignore'
-        ansible_winrm_transport: 'kerberos'
-
-    - name: Remove the zip file results from ADP01
-      ansible.builtin.file:
-        path: '{{ destination_path }}/results/'
-        state: absent
-      delegate_to: localhost
-  when:
-    - stig_result is not failed or "Failed" in stig_result.stderr
-    - windows_destination_path != ""
-
-- name: Process Evaluate-STIG Results for Linux Transfer
-  block:
-    - name: Archive Evaluate-STIG Results
-      ansible.builtin.archive:
-        path: '{{ destination_path }}/{{ inventory_hostname | upper }}'
-        dest: '{{ destination_path }}/{{ inventory_hostname }}.zip'
-        format: zip
-
-    - name: Create temporary results directory
-      ansible.builtin.file:
-        path: '{{ destination_path }}/results/'
-        state: directory
-      delegate_to: localhost
-
-    - name: Fetch Evaluate-STIG Results Archive
-      ansible.builtin.fetch:
-        src: '{{ destination_path }}/{{ inventory_hostname }}.zip'
-        dest: '{{ destination_path }}/results/'
-        flat: true
-
-    - name: Ensure destination folder exists on {{ transfer_host }}
-      ansible.builtin.file:
-        path: '{{ linux_destination_path }}/{{ phase_path }}'
-        state: directory
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_pass: '{{ transfer_password }}'
-        ansible_become_method: 'sudo'
-        ansible_connection: 'ssh'
-        ansible_port: 22
-      become: '{{ true if transfer_host == "adp01" else false }}'
-
-    - name: Transfer results to {{ transfer_host }}
-      ansible.builtin.copy:
-        src: '{{ destination_path }}/results/{{ inventory_hostname }}.zip'
-        dest: '{{ linux_destination_path }}'
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_pass: '{{ transfer_password }}'
-        ansible_become_method: 'sudo'
-        ansible_connection: 'ssh'
-        ansible_port: 22
-      become: '{{ true if transfer_host == "adp01" else false }}'
-
-    - name: Extract the ZIP file on {{ transfer_host }}
-      ansible.builtin.unarchive:
-        src: '{{ linux_destination_path }}/{{ inventory_hostname }}.zip'
-        dest: '{{ linux_destination_path }}/{{ phase_path }}'
-        remote_src: true
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_pass: '{{ transfer_password }}'
-        ansible_become_method: 'sudo'
-        ansible_connection: 'ssh'
-        ansible_port: 22
-      become: '{{ true if transfer_host == "adp01" else false }}'
-
-    - name: Remove the zip file results from {{ transfer_host }}
-      ansible.builtin.file:
-        path: '{{ linux_destination_path }}/{{ inventory_hostname }}.zip'
-        state: absent
-      delegate_to: '{{ transfer_host }}'
-      vars:
-        ansible_user: '{{ transfer_user }}'
-        ansible_password: '{{ transfer_password }}'
-        ansible_become_pass: '{{ transfer_password }}'
-        ansible_become_method: 'sudo'
-        ansible_connection: 'ssh'
-        ansible_port: 22
-      become: '{{ true if transfer_host == "adp01" else false }}'
-
-    - name: Remove the zip file results from ADP01
-      ansible.builtin.file:
-        path: '{{ destination_path }}/results/'
-        state: absent
-      delegate_to: localhost
-
-    - name: Set file permissions for ADP01
-      ansible.builtin.file:
-        path: '{{ linux_destination_path }}'
-        owner: awx
-        group: awx
-        mode: 770
-        recurse: true
-      delegate_to: adp01
-      become: true
-      when: transfer_host == "adp01"
-  when:
-    - stig_result is not failed or "Failed" in stig_result.stderr
-    - windows_destination_path == ""
-
-# Extract STIG results
-- name: Read HTML file using slurp
-  ansible.builtin.slurp:
-    src: '{{ destination_path }}/{{ inventory_hostname | upper }}/SummaryReport.html'
-  register: html_file
-
-- name: Decode HTML content
-  ansible.builtin.set_fact:
-    html_content: "{{ html_file.content | b64decode }}"
-
-- name: Extract the stig names
-  ansible.builtin.set_fact:
-    stig_names: >-
-      {{ html_content | regex_findall('<a.*class="stig_button".*>(.*?)</a>', '\\1') }}
-
-- name: Extract the stig scores
-  ansible.builtin.set_fact:
-    stig_scores: >-
-      {{ stig_scores | default({}) | combine({item: html_content | regex_findall(item + '(?:[\s\S]*?(\d+(?:\.\d+)?%)(?:(?:\s+)?<\/td>)[\s\S]*?)</tr>', '\\1') | first }) }}
-  loop: '{{ stig_names }}'
-
-# Clean up
-- name: Find all Evaluate-STIG_* content
-  ansible.builtin.find:
-    paths: '{{ execution_path }}'
-    patterns: 'Evaluate-STIG_*'
-    file_type: directory
-  register: used_evaluate_stig
+# Copy results to Desktop and stop execution
+- name: Ensure Desktop directory exists
+  ansible.builtin.file:
+    path: /home/admin/Desktop
+    state: directory
+    owner: admin
+    group: admin
+    mode: '0755'
   become: true
 
-- name: Clean up previous Evaluate-STIG directory
-  ansible.builtin.file:
-    path: '{{ item.path }}'
-    state: absent
-  loop: '{{ used_evaluate_stig.files }}'
-
-- name: Clean up Evaluate-STIG results
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - '{{ destination_path }}/{{ inventory_hostname | upper }}'
-    - '{{ destination_path }}/{{ inventory_hostname }}.zip'
-    - '{{ destination_path }}/Evaluate-STIG/'
+- name: Copy results folder to Desktop
+  ansible.builtin.shell: |
+    if [ -d "{{ destination_path }}/{{ inventory_hostname | upper }}" ]; then
+      cp -r {{ destination_path }}/{{ inventory_hostname | upper }} /home/admin/Desktop/
+      chown -R admin:admin /home/admin/Desktop/{{ inventory_hostname | upper }}
+      echo "STIG results successfully copied from {{ destination_path }}/{{ inventory_hostname | upper }} to /home/admin/Desktop/{{ inventory_hostname | upper }}"
+    else
+      echo "WARNING: {{ destination_path }}/{{ inventory_hostname | upper }} does not exist"
+      exit 1
+    fi
   become: true
+  register: copy_result
 
-# Display STIG Results
-- name: Display STIG scores
+- name: Display completion message
   ansible.builtin.debug:
     msg: |
-      {{ item.key }} - {{ item.value }}
-  loop: '{{ stig_scores | dict2items }}'
+      STIG evaluation and copy complete!
+      Source: {{ destination_path }}/{{ inventory_hostname | upper }}
+      Destination: /home/admin/Desktop/{{ inventory_hostname | upper }}
+      Status: {{ copy_result.stdout | default('Copy completed') }}
+      Stopping execution now.
