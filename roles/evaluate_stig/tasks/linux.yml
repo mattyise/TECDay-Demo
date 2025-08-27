@@ -136,6 +136,7 @@
         state: restarted
       become: true
   when:
+    - "'fapolicyd.service' in ansible_facts.services"
     - ansible_facts.services['fapolicyd.service'].status == 'enabled'
     - ansible_facts.services['fapolicyd.service'].state == 'running'
 
@@ -145,7 +146,7 @@
   async: 1200 # Timeout after 20 minutes
   poll: 15
   register: stig_result
-  ignore_errors: yes
+  ignore_errors: true
   become: true
 
 - block:
@@ -161,6 +162,7 @@
         state: restarted
       become: true
   when:
+    - "'fapolicyd.service' in ansible_facts.services"
     - ansible_facts.services['fapolicyd.service'].status == 'enabled'
     - ansible_facts.services['fapolicyd.service'].state == 'running'
 
