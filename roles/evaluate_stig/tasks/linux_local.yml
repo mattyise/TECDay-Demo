@@ -149,6 +149,33 @@
   ignore_errors: true
   become: true
 
+# Copy results to Desktop and stop execution
+- name: Copy /tmp/{{ inventory_hostname | upper }} to Desktop
+  block:
+    - name: Ensure Desktop directory exists
+      ansible.builtin.file:
+        path: /home/admin/Desktop
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0755'
+      become: true
+
+    - name: Copy results folder to Desktop
+      ansible.builtin.shell: |
+        if [ -d "{{ destination_path }}/{{ inventory_hostname | upper }}" ]; then
+          cp -r {{ destination_path }}/{{ inventory_hostname | upper }} /home/admin/Desktop/
+          chown -R admin:admin /home/admin/Desktop/{{ inventory_hostname | upper }}
+        fi
+      become: true
+    
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: "STIG results have been copied to /home/admin/Desktop/{{ inventory_hostname | upper }}. Stopping execution."
+    
+    - name: Stop playbook execution
+      ansible.builtin.meta: end_play
+
 - block:
     - name: Remove Evaluate Tool from fapolicyd
       ansible.builtin.shell: fapolicyd-cli --file delete '{{ execution_path }}/{{ most_recent_evaluate_stig_binary.path | basename | regex_replace(".zip$", "") }}'

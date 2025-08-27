@@ -1,0 +1,89 @@
+---
+- name: Clone Windows Server 2016 Template in vCenter
+  hosts: localhost
+  gather_facts: false
+  vars:
+    datacenter_name: "CANES"
+    vm_name: "windows_demo"
+    vm_ip: "164.191.65.51"
+    
+  tasks:
+    - name: Clone the VM from template
+      community.vmware.vmware_guest:
+        validate_certs: false
+        name: "{{ vm_name }}"
+        template: "__W2K16E64_UNCLASS_Template"
+        datacenter: "{{ datacenter_name }}"
+        folder: "/TECDay Demo"
+        cluster: "CANES"
+        datastore: "DATA_vSAN"
+        state: poweredon
+        hardware:
+          memory_mb: 16384
+          num_cpus: 4
+          scsi: paravirtual
+        networks:
+          - name: "VL181_App-164.191.65.0_24"
+            ip: "{{ vm_ip }}"
+            netmask: "255.255.255.0"
+            gateway: "164.191.65.1"
+            type: static
+            start_connected: true
+        customization:
+          dns_servers:
+            - "164.191.65.6"
+            - "164.191.65.7"
+          dns_suffix: "cvn9001.navy.mil"
+          hostname: "{{ vm_name }}"
+          domain: "cvn9001.navy.mil"
+          # Windows-specific customization
+          joinworkgroup: "WORKGROUP"
+          fullname: "Administrator"
+          orgname: "DoD"
+          # Set admin password
+          password: "WWTwwt1!WWTwwt1!"
+          autologon: true
+          autologoncount: 1
+        wait_for_ip_address: true
+        wait_for_customization: true
+      delegate_to: localhost
+      register: deploy_vm
+    
+    - name: Display VM information
+      debug:
+        msg:
+          - "VM '{{ vm_name }}' has been successfully deployed"
+          - "IP Address: {{ vm_ip }}"
+          - "CPU: 4 cores"
+          - "Memory: 16GB"
+          - "Network: VL181_App-164.191.65.0_24"
+    
+    - name: Wait for VM to be accessible via WinRM
+      wait_for:
+        host: "{{ vm_ip }}"
+        port: 5986
+        delay: 60
+        timeout: 600
+        state: started
+      delegate_to: localhost
+      
+    - name: Gather VM facts
+      community.vmware.vmware_guest_info:
+        validate_certs: false
+        datacenter: "{{ datacenter_name }}"
+        name: "{{ vm_name }}"
+      delegate_to: localhost
+      register: vm_facts
+      
+    - name: Display VM deployment summary
+      debug:
+        msg:
+          - "=== VM Deployment Summary ==="
+          - "VM Name: {{ vm_name }}"
+          - "Power State: {{ vm_facts.instance.hw_power_status }}"
+          - "Guest OS: {{ vm_facts.instance.hw_guest_full_name | default('N/A') }}"
+          - "IP Address: {{ vm_ip }}"
+          - "MAC Address: {{ vm_facts.instance.hw_eth0.macaddress | default('N/A') }}"
+          - ""
+          - "Note: Windows VM may take several minutes to complete sysprep and customization"
+          - "WinRM will be available on port 5986 once the VM is fully configured"
