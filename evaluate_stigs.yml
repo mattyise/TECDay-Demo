@@ -1,7 +1,7 @@
 ---
 # Playbook used to execute solely the Evaluate STIG tool across various devices
 - name: "Execute Evaluate STIG Tool"
-  hosts: rhel_demo
+  hosts: rhel-demo
   gather_facts: true
   vars:
     evaluate: true  # Runs Evaluate STIG tool to generate report against the target host

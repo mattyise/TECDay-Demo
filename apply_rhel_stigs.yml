@@ -1,6 +1,6 @@
 ---
 - name: Apply RHEL STIGs - Basic Security Hardening
-  hosts: rhel_demo
+  hosts: rhel-demo
   become: yes
   vars:
     # STIG-compliant login banner message
