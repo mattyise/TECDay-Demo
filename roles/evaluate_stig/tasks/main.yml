@@ -1,0 +1,40 @@
+---
+# Executes Evaluate STIG PowerShell tool against either windows or linux systems
+# To execute the PowerShell tool on the Linux environment the PowerShell tarball
+# file must be present in ADP01 persistent_data/software/dsl directory
+#
+# Variables leveraged by role:
+#   - windows_destination_path
+#   - linux_destination_path
+#   - transfer_host
+#   - transfer_user
+#   - transfer_password
+
+# Executes Evaluate STIG against Linux systems and will generate the reports 
+# specified. By default, transfer to the {{ windows_destination_path }} 
+# from the defaults/main.yml. The value of windows_destination_path can be set
+# to an empty string, in which case, the data will attempt to transfer to a 
+# Linux host (be sure to update the transfer_host, transfer_user, and 
+# transfer_password)
+- name: Execute Evaluate STIG tasks against Linux
+  ansible.builtin.include_tasks: 
+    file: linux.yml
+  vars:
+    execution_path: '{{ ansible_facts["env"]["XDG_RUNTIME_DIR"] }}'
+    destination_path: '/tmp'
+    evaluate_stig_command: 'Evaluate-STIG_Bash.sh'
+    evaluate_stig_output: 'CKL,Summary'
+  when: ansible_facts["system"] == "Linux"
+
+# Executes Evaluate STIG against Windows systems and transfers reports to a
+# Windows share drive. By default, in CANES, the windows_destination_path is
+# located on FS01
+- name: Execute Evaluate STIG tasks against Windows
+  ansible.builtin.include_tasks: 
+    file: windows.yml
+  vars:
+    execution_path: '{{ ansible_facts["env"]["USERPROFILE"] }}'
+    destination_path: '{{ windows_destination_path }}'
+    evaluate_stig_command: 'Evaluate-STIG.ps1'
+    evaluate_stig_output: 'CKL,OQE,Summary'
+  when: '"win" in (ansible_facts["system"] | lower)'

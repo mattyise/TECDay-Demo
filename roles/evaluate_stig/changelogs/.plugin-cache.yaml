@@ -1,0 +1,1071 @@
+objects:
+  role: {}
+plugins:
+  become:
+    runas:
+      description: Run As user
+      name: runas
+      version_added: '2.8'
+    su:
+      description: Substitute User
+      name: su
+      version_added: '2.8'
+    sudo:
+      description: Substitute User DO
+      name: sudo
+      version_added: '2.8'
+  cache:
+    jsonfile:
+      description: JSON formatted files.
+      name: jsonfile
+      version_added: '1.9'
+    memory:
+      description: RAM backed, non persistent
+      name: memory
+      version_added: historical
+  callback:
+    default:
+      description: default Ansible screen output
+      name: default
+      version_added: historical
+    junit:
+      description: write playbook output to a JUnit file.
+      name: junit
+      version_added: historical
+    minimal:
+      description: minimal Ansible screen output
+      name: minimal
+      version_added: historical
+    oneline:
+      description: oneline Ansible screen output
+      name: oneline
+      version_added: historical
+    tree:
+      description: Save host events to files
+      name: tree
+      version_added: '2.0'
+  cliconf: {}
+  connection:
+    local:
+      description: execute on controller
+      name: local
+      version_added: historical
+    paramiko_ssh:
+      description: Run tasks via Python SSH (paramiko)
+      name: paramiko_ssh
+      version_added: '0.1'
+    psrp:
+      description: Run tasks over Microsoft PowerShell Remoting Protocol
+      name: psrp
+      version_added: '2.7'
+    ssh:
+      description: connect via SSH client binary
+      name: ssh
+      version_added: historical
+    winrm:
+      description: Run tasks over Microsoft's WinRM
+      name: winrm
+      version_added: '2.0'
+  filter:
+    b64decode:
+      description: Decode a Base64 string
+      name: b64decode
+      version_added: historical
+    b64encode:
+      description: Encode a string as Base64
+      name: b64encode
+      version_added: historical
+    basename:
+      description: get a path's base name
+      name: basename
+      version_added: historical
+    bool:
+      description: cast into a boolean
+      name: bool
+      version_added: historical
+    checksum:
+      description: checksum of input data
+      name: checksum
+      version_added: '1.9'
+    combinations:
+      description: combinations from the elements of a list
+      name: combinations
+      version_added: historical
+    combine:
+      description: combine two dictionaries
+      name: combine
+      version_added: '2.0'
+    comment:
+      description: comment out a string
+      name: comment
+      version_added: historical
+    commonpath:
+      description: gets the common path
+      name: commonpath
+      version_added: '2.15'
+    dict2items:
+      description: Convert a dictionary into an itemized list of dictionaries
+      name: dict2items
+      version_added: '2.6'
+    difference:
+      description: the difference of one list from another
+      name: difference
+      version_added: '1.4'
+    dirname:
+      description: get a path's directory name
+      name: dirname
+      version_added: historical
+    expanduser:
+      description: Returns a path with C(~) translation.
+      name: expanduser
+      version_added: '1.5'
+    expandvars:
+      description: expand environment variables
+      name: expandvars
+      version_added: '1.5'
+    extract:
+      description: extract a value based on an index or key
+      name: extract
+      version_added: '2.1'
+    fileglob:
+      description: explode a path glob to matching files
+      name: fileglob
+      version_added: null
+    flatten:
+      description: flatten lists within a list
+      name: flatten
+      version_added: '2.5'
+    from_json:
+      description: Convert JSON string into variable structure
+      name: from_json
+      version_added: historical
+    from_yaml:
+      description: Convert YAML string into variable structure
+      name: from_yaml
+      version_added: historical
+    from_yaml_all:
+      description: Convert a series of YAML documents into a variable structure
+      name: from_yaml_all
+      version_added: historical
+    hash:
+      description: hash of input data
+      name: hash
+      version_added: '1.9'
+    human_readable:
+      description: Make bytes/bits human-readable
+      name: human_readable
+      version_added: historical
+    human_to_bytes:
+      description: Get bytes from string
+      name: human_to_bytes
+      version_added: historical
+    intersect:
+      description: intersection of lists
+      name: intersect
+      version_added: '1.4'
+    items2dict:
+      description: Consolidate a list of itemized dictionaries into a dictionary
+      name: items2dict
+      version_added: '2.7'
+    log:
+      description: log of (math operation)
+      name: log
+      version_added: '1.9'
+    mandatory:
+      description: make a variable's existence mandatory
+      name: mandatory
+      version_added: historical
+    md5:
+      description: MD5 hash of input data
+      name: md5
+      version_added: historical
+    normpath:
+      description: Normalize a pathname
+      name: normpath
+      version_added: '2.15'
+    password_hash:
+      description: convert input password into password_hash
+      name: password_hash
+      version_added: historical
+    path_join:
+      description: Join one or more path components
+      name: path_join
+      version_added: '2.10'
+    permutations:
+      description: permutations from the elements of a list
+      name: permutations
+      version_added: historical
+    pow:
+      description: power of (math operation)
+      name: pow
+      version_added: '1.9'
+    product:
+      description: cartesian product of lists
+      name: product
+      version_added: historical
+    quote:
+      description: shell quoting
+      name: quote
+      version_added: '2.10'
+    random:
+      description: random number or list item
+      name: random
+      version_added: '2.6'
+    realpath:
+      description: Turn path into real path
+      name: realpath
+      version_added: '1.8'
+    regex_escape:
+      description: escape regex chars
+      name: regex_escape
+      version_added: '2.8'
+    regex_findall:
+      description: extract all regex matches from string
+      name: regex_findall
+      version_added: '2.0'
+    regex_replace:
+      description: replace a string via regex
+      name: regex_replace
+      version_added: '2.0'
+    regex_search:
+      description: extract regex match from string
+      name: regex_search
+      version_added: '2.0'
+    rekey_on_member:
+      description: Rekey a list of dicts into a dict using a member
+      name: rekey_on_member
+      version_added: '2.13'
+    relpath:
+      description: Make a path relative
+      name: relpath
+      version_added: '1.7'
+    root:
+      description: root of (math operation)
+      name: root
+      version_added: '1.9'
+    sha1:
+      description: SHA-1 hash of input data
+      name: sha1
+      version_added: historical
+    shuffle:
+      description: randomize a list
+      name: shuffle
+      version_added: '2.6'
+    split:
+      description: split a string into a list
+      name: split
+      version_added: 2.11
+    splitext:
+      description: split a path into root and file extension
+      name: splitext
+      version_added: '2.0'
+    strftime:
+      description: date formating
+      name: strftime
+      version_added: '2.4'
+    subelements:
+      description: returns a product of a list and its elements
+      name: subelements
+      version_added: '2.7'
+    symmetric_difference:
+      description: different items from two lists
+      name: symmetric_difference
+      version_added: '1.4'
+    ternary:
+      description: Ternary operation filter
+      name: ternary
+      version_added: '1.9'
+    to_datetime:
+      description: Get C(datetime) from string
+      name: to_datetime
+      version_added: '2.4'
+    to_json:
+      description: Convert variable to JSON string
+      name: to_json
+      version_added: historical
+    to_nice_json:
+      description: Convert variable to 'nicely formatted' JSON string
+      name: to_nice_json
+      version_added: historical
+    to_nice_yaml:
+      description: Convert variable to YAML string
+      name: to_nice_yaml
+      version_added: historical
+    to_uuid:
+      description: namespaced UUID generator
+      name: to_uuid
+      version_added: '2.9'
+    to_yaml:
+      description: Convert variable to YAML string
+      name: to_yaml
+      version_added: historical
+    type_debug:
+      description: show input data type
+      name: type_debug
+      version_added: '2.3'
+    union:
+      description: union of lists
+      name: union
+      version_added: '1.4'
+    unique:
+      description: set of unique items of a list
+      name: unique
+      version_added: '1.4'
+    unvault:
+      description: Open an Ansible Vault
+      name: unvault
+      version_added: '2.12'
+    urldecode:
+      description: Decode percent-encoded sequences
+      name: urldecode
+      version_added: '2.4'
+    urlsplit:
+      description: get components from URL
+      name: urlsplit
+      version_added: '2.4'
+    vault:
+      description: vault your secrets
+      name: vault
+      version_added: '2.12'
+    win_basename:
+      description: Get a Windows path's base name
+      name: win_basename
+      version_added: '2.0'
+    win_dirname:
+      description: Get a Windows path's directory
+      name: win_dirname
+      version_added: '2.0'
+    win_splitdrive:
+      description: Split a Windows path by the drive letter
+      name: win_splitdrive
+      version_added: '2.0'
+    zip:
+      description: combine list elements
+      name: zip
+      version_added: '2.3'
+    zip_longest:
+      description: combine list elements, with filler
+      name: zip_longest
+      version_added: '2.3'
+  httpapi: {}
+  inventory:
+    advanced_host_list:
+      description: Parses a 'host list' with ranges
+      name: advanced_host_list
+      version_added: '2.4'
+    auto:
+      description: Loads and executes an inventory plugin specified in a YAML config
+      name: auto
+      version_added: '2.5'
+    constructed:
+      description: Uses Jinja2 to construct vars and groups based on existing inventory.
+      name: constructed
+      version_added: '2.4'
+    generator:
+      description: Uses Jinja2 to construct hosts and groups from patterns
+      name: generator
+      version_added: '2.6'
+    host_list:
+      description: Parses a 'host list' string
+      name: host_list
+      version_added: '2.4'
+    ini:
+      description: Uses an Ansible INI file as inventory source.
+      name: ini
+      version_added: '2.4'
+    script:
+      description: Executes an inventory script that returns JSON
+      name: script
+      version_added: '2.4'
+    toml:
+      description: Uses a specific TOML file as an inventory source.
+      name: toml
+      version_added: '2.8'
+    yaml:
+      description: Uses a specific YAML file as an inventory source.
+      name: yaml
+      version_added: '2.4'
+  lookup:
+    config:
+      description: Display the 'resolved' Ansible option values.
+      name: config
+      version_added: '2.5'
+    csvfile:
+      description: read data from a TSV or CSV file
+      name: csvfile
+      version_added: '1.5'
+    dict:
+      description: returns key/value pair items from dictionaries
+      name: dict
+      version_added: '1.5'
+    env:
+      description: Read the value of environment variables
+      name: env
+      version_added: '0.9'
+    file:
+      description: read file contents
+      name: file
+      version_added: '0.9'
+    fileglob:
+      description: list files matching a pattern
+      name: fileglob
+      version_added: '1.4'
+    first_found:
+      description: return first file found from list
+      name: first_found
+      version_added: historical
+    indexed_items:
+      description: rewrites lists to return 'indexed items'
+      name: indexed_items
+      version_added: '1.3'
+    ini:
+      description: read data from an ini file
+      name: ini
+      version_added: '2.0'
+    inventory_hostnames:
+      description: list of inventory hosts matching a host pattern
+      name: inventory_hostnames
+      version_added: '1.3'
+    items:
+      description: list of items
+      name: items
+      version_added: historical
+    lines:
+      description: read lines from command
+      name: lines
+      version_added: '0.9'
+    list:
+      description: simply returns what it is given.
+      name: list
+      version_added: '2.0'
+    nested:
+      description: composes a list with nested elements of other lists
+      name: nested
+      version_added: '1.1'
+    password:
+      description: retrieve or generate a random password, stored in a file
+      name: password
+      version_added: '1.1'
+    pipe:
+      description: read output from a command
+      name: pipe
+      version_added: '0.9'
+    random_choice:
+      description: return random element from list
+      name: random_choice
+      version_added: '1.1'
+    sequence:
+      description: generate a list based on a number sequence
+      name: sequence
+      version_added: '1.0'
+    subelements:
+      description: traverse nested key from a list of dictionaries
+      name: subelements
+      version_added: '1.4'
+    template:
+      description: retrieve contents of file after templating with Jinja2
+      name: template
+      version_added: '0.9'
+    together:
+      description: merges lists into synchronized list
+      name: together
+      version_added: '1.3'
+    unvault:
+      description: read vaulted file(s) contents
+      name: unvault
+      version_added: '2.10'
+    url:
+      description: return contents from URL
+      name: url
+      version_added: '1.9'
+    varnames:
+      description: Lookup matching variable names
+      name: varnames
+      version_added: '2.8'
+    vars:
+      description: Lookup templated value of variables
+      name: vars
+      version_added: '2.5'
+  module:
+    add_host:
+      description: Add a host (and alternatively a group) to the ansible-playbook
+        in-memory inventory
+      name: add_host
+      namespace: ''
+      version_added: '0.9'
+    apt:
+      description: Manages apt-packages
+      name: apt
+      namespace: ''
+      version_added: 0.0.2
+    apt_key:
+      description: Add or remove an apt key
+      name: apt_key
+      namespace: ''
+      version_added: '1.0'
+    apt_repository:
+      description: Add and remove APT repositories
+      name: apt_repository
+      namespace: ''
+      version_added: '0.7'
+    assemble:
+      description: Assemble configuration files from fragments
+      name: assemble
+      namespace: ''
+      version_added: '0.5'
+    assert:
+      description: Asserts given expressions are true
+      name: assert
+      namespace: ''
+      version_added: '1.5'
+    async_status:
+      description: Obtain status of asynchronous task
+      name: async_status
+      namespace: ''
+      version_added: '0.5'
+    blockinfile:
+      description: Insert/update/remove a text block surrounded by marker lines
+      name: blockinfile
+      namespace: ''
+      version_added: '2.0'
+    command:
+      description: Execute commands on targets
+      name: command
+      namespace: ''
+      version_added: historical
+    copy:
+      description: Copy files to remote locations
+      name: copy
+      namespace: ''
+      version_added: historical
+    cron:
+      description: Manage cron.d and crontab entries
+      name: cron
+      namespace: ''
+      version_added: '0.9'
+    deb822_repository:
+      description: Add and remove deb822 formatted repositories
+      name: deb822_repository
+      namespace: ''
+      version_added: '2.15'
+    debconf:
+      description: Configure a .deb package
+      name: debconf
+      namespace: ''
+      version_added: '1.6'
+    debug:
+      description: Print statements during execution
+      name: debug
+      namespace: ''
+      version_added: '0.8'
+    dnf:
+      description: Manages packages with the I(dnf) package manager
+      name: dnf
+      namespace: ''
+      version_added: 1.9
+    dnf5:
+      description: Manages packages with the I(dnf5) package manager
+      name: dnf5
+      namespace: ''
+      version_added: 2.15
+    dpkg_selections:
+      description: Dpkg package selection selections
+      name: dpkg_selections
+      namespace: ''
+      version_added: '2.0'
+    expect:
+      description: Executes a command and responds to prompts
+      name: expect
+      namespace: ''
+      version_added: '2.0'
+    fail:
+      description: Fail with custom message
+      name: fail
+      namespace: ''
+      version_added: '0.8'
+    fetch:
+      description: Fetch files from remote nodes
+      name: fetch
+      namespace: ''
+      version_added: '0.2'
+    file:
+      description: Manage files and file properties
+      name: file
+      namespace: ''
+      version_added: historical
+    find:
+      description: Return a list of files based on specific criteria
+      name: find
+      namespace: ''
+      version_added: '2.0'
+    gather_facts:
+      description: Gathers facts about remote hosts
+      name: gather_facts
+      namespace: ''
+      version_added: 2.8
+    get_url:
+      description: Downloads files from HTTP, HTTPS, or FTP to node
+      name: get_url
+      namespace: ''
+      version_added: '0.6'
+    getent:
+      description: A wrapper to the unix getent utility
+      name: getent
+      namespace: ''
+      version_added: '1.8'
+    git:
+      description: Deploy software (or files) from git checkouts
+      name: git
+      namespace: ''
+      version_added: 0.0.1
+    group:
+      description: Add or remove groups
+      name: group
+      namespace: ''
+      version_added: 0.0.2
+    group_by:
+      description: Create Ansible groups based on facts
+      name: group_by
+      namespace: ''
+      version_added: '0.9'
+    hostname:
+      description: Manage hostname
+      name: hostname
+      namespace: ''
+      version_added: '1.4'
+    import_playbook:
+      description: Import a playbook
+      name: import_playbook
+      namespace: ''
+      version_added: '2.4'
+    import_role:
+      description: Import a role into a play
+      name: import_role
+      namespace: ''
+      version_added: '2.4'
+    import_tasks:
+      description: Import a task list
+      name: import_tasks
+      namespace: ''
+      version_added: '2.4'
+    include_role:
+      description: Load and execute a role
+      name: include_role
+      namespace: ''
+      version_added: '2.2'
+    include_tasks:
+      description: Dynamically include a task list
+      name: include_tasks
+      namespace: ''
+      version_added: '2.4'
+    include_vars:
+      description: Load variables from files, dynamically within a task
+      name: include_vars
+      namespace: ''
+      version_added: '1.4'
+    iptables:
+      description: Modify iptables rules
+      name: iptables
+      namespace: ''
+      version_added: '2.0'
+    known_hosts:
+      description: Add or remove a host from the C(known_hosts) file
+      name: known_hosts
+      namespace: ''
+      version_added: '1.9'
+    lineinfile:
+      description: Manage lines in text files
+      name: lineinfile
+      namespace: ''
+      version_added: '0.7'
+    meta:
+      description: Execute Ansible 'actions'
+      name: meta
+      namespace: ''
+      version_added: '1.2'
+    package:
+      description: Generic OS package manager
+      name: package
+      namespace: ''
+      version_added: 2.0
+    package_facts:
+      description: Package information as facts
+      name: package_facts
+      namespace: ''
+      version_added: '2.5'
+    pause:
+      description: Pause playbook execution
+      name: pause
+      namespace: ''
+      version_added: '0.8'
+    ping:
+      description: Try to connect to host, verify a usable python and return V(pong)
+        on success
+      name: ping
+      namespace: ''
+      version_added: historical
+    pip:
+      description: Manages Python library dependencies
+      name: pip
+      namespace: ''
+      version_added: '0.7'
+    raw:
+      description: Executes a low-down and dirty command
+      name: raw
+      namespace: ''
+      version_added: historical
+    reboot:
+      description: Reboot a machine
+      name: reboot
+      namespace: ''
+      version_added: '2.7'
+    replace:
+      description: Replace all instances of a particular string in a file using a
+        back-referenced regular expression
+      name: replace
+      namespace: ''
+      version_added: '1.6'
+    rpm_key:
+      description: Adds or removes a gpg key from the rpm db
+      name: rpm_key
+      namespace: ''
+      version_added: '1.3'
+    script:
+      description: Runs a local script on a remote node after transferring it
+      name: script
+      namespace: ''
+      version_added: '0.9'
+    service:
+      description: Manage services
+      name: service
+      namespace: ''
+      version_added: '0.1'
+    service_facts:
+      description: Return service state information as fact data
+      name: service_facts
+      namespace: ''
+      version_added: '2.5'
+    set_fact:
+      description: Set host variable(s) and fact(s).
+      name: set_fact
+      namespace: ''
+      version_added: '1.2'
+    set_stats:
+      description: Define and display stats for the current ansible run
+      name: set_stats
+      namespace: ''
+      version_added: '2.3'
+    setup:
+      description: Gathers facts about remote hosts
+      name: setup
+      namespace: ''
+      version_added: historical
+    shell:
+      description: Execute shell commands on targets
+      name: shell
+      namespace: ''
+      version_added: '0.2'
+    slurp:
+      description: Slurps a file from remote nodes
+      name: slurp
+      namespace: ''
+      version_added: historical
+    stat:
+      description: Retrieve file or file system status
+      name: stat
+      namespace: ''
+      version_added: '1.3'
+    subversion:
+      description: Deploys a subversion repository
+      name: subversion
+      namespace: ''
+      version_added: '0.7'
+    systemd:
+      description: Manage systemd units
+      name: systemd
+      namespace: ''
+      version_added: '2.2'
+    systemd_service:
+      description: Manage systemd units
+      name: systemd_service
+      namespace: ''
+      version_added: '2.2'
+    sysvinit:
+      description: Manage SysV services.
+      name: sysvinit
+      namespace: ''
+      version_added: '2.6'
+    tempfile:
+      description: Creates temporary files and directories
+      name: tempfile
+      namespace: ''
+      version_added: '2.3'
+    template:
+      description: Template a file out to a target host
+      name: template
+      namespace: ''
+      version_added: historical
+    unarchive:
+      description: Unpacks an archive after (optionally) copying it from the local
+        machine
+      name: unarchive
+      namespace: ''
+      version_added: '1.4'
+    uri:
+      description: Interacts with webservices
+      name: uri
+      namespace: ''
+      version_added: '1.1'
+    user:
+      description: Manage user accounts
+      name: user
+      namespace: ''
+      version_added: '0.2'
+    validate_argument_spec:
+      description: Validate role argument specs.
+      name: validate_argument_spec
+      namespace: ''
+      version_added: '2.11'
+    wait_for:
+      description: Waits for a condition before continuing
+      name: wait_for
+      namespace: ''
+      version_added: '0.7'
+    wait_for_connection:
+      description: Waits until remote system is reachable/usable
+      name: wait_for_connection
+      namespace: ''
+      version_added: '2.3'
+    yum_repository:
+      description: Add or remove YUM repositories
+      name: yum_repository
+      namespace: ''
+      version_added: '2.1'
+  netconf: {}
+  shell:
+    cmd:
+      description: Windows Command Prompt
+      name: cmd
+      version_added: '2.8'
+    powershell:
+      description: Windows PowerShell
+      name: powershell
+      version_added: historical
+    sh:
+      description: POSIX shell (/bin/sh)
+      name: sh
+      version_added: historical
+  strategy:
+    debug:
+      description: Executes tasks in interactive debug session.
+      name: debug
+      version_added: '2.1'
+    free:
+      description: Executes tasks without waiting for all hosts
+      name: free
+      version_added: '2.0'
+    host_pinned:
+      description: Executes tasks on each host without interruption
+      name: host_pinned
+      version_added: '2.7'
+    linear:
+      description: Executes tasks in a linear fashion
+      name: linear
+      version_added: '2.0'
+  test:
+    abs:
+      description: is the path absolute
+      name: abs
+      version_added: '2.5'
+    all:
+      description: are all conditions in a list true
+      name: all
+      version_added: '2.4'
+    any:
+      description: is any condition in a list true
+      name: any
+      version_added: '2.4'
+    change:
+      description: did the task require changes
+      name: change
+      version_added: '1.9'
+    changed:
+      description: did the task require changes
+      name: changed
+      version_added: '1.9'
+    contains:
+      description: does the list contain this element
+      name: contains
+      version_added: '2.4'
+    directory:
+      description: does the path resolve to an existing directory
+      name: directory
+      version_added: '2.5'
+    exists:
+      description: does the path exist, follow symlinks
+      name: exists
+      version_added: '2.5'
+    failed:
+      description: did the task fail
+      name: failed
+      version_added: '1.9'
+    failure:
+      description: did the task fail
+      name: failure
+      version_added: '1.9'
+    falsy:
+      description: Pythonic false
+      name: falsy
+      version_added: '2.10'
+    file:
+      description: does the path resolve to an existing file
+      name: file
+      version_added: '2.5'
+    finished:
+      description: Did async task finish
+      name: finished
+      version_added: '1.9'
+    is_abs:
+      description: is the path absolute
+      name: is_abs
+      version_added: '2.5'
+    is_dir:
+      description: does the path resolve to an existing directory
+      name: is_dir
+      version_added: '2.5'
+    is_file:
+      description: does the path resolve to an existing file
+      name: is_file
+      version_added: '2.5'
+    is_link:
+      description: does the path reference existing symbolic link
+      name: is_link
+      version_added: '2.5'
+    is_mount:
+      description: does the path resolve to mount point
+      name: is_mount
+      version_added: '2.5'
+    is_same_file:
+      description: compares two paths to see if they resolve to the same filesystem
+        object
+      name: is_same_file
+      version_added: '2.5'
+    isnan:
+      description: is this not a number (NaN)
+      name: isnan
+      version_added: '2.5'
+    issubset:
+      description: is the list a subset of this other list
+      name: issubset
+      version_added: '2.4'
+    issuperset:
+      description: is the list a superset of this other list
+      name: issuperset
+      version_added: '2.4'
+    link:
+      description: does the path reference existing symbolic link
+      name: link
+      version_added: '2.5'
+    link_exists:
+      description: does the path exist, no follow
+      name: link_exists
+      version_added: '2.5'
+    match:
+      description: Does string match regular expression from the start
+      name: match
+      version_added: null
+    mount:
+      description: does the path resolve to mount point
+      name: mount
+      version_added: '2.5'
+    nan:
+      description: is this not a number (NaN)
+      name: nan
+      version_added: '2.5'
+    reachable:
+      description: Task did not end due to unreachable host
+      name: reachable
+      version_added: '1.9'
+    regex:
+      description: Does string match regular expression from the start
+      name: regex
+      version_added: null
+    same_file:
+      description: compares two paths to see if they resolve to the same filesystem
+        object
+      name: same_file
+      version_added: '2.5'
+    search:
+      description: Does string match a regular expression
+      name: search
+      version_added: null
+    skip:
+      description: Was task skipped
+      name: skip
+      version_added: '1.9'
+    skipped:
+      description: Was task skipped
+      name: skipped
+      version_added: '1.9'
+    started:
+      description: Was async task started
+      name: started
+      version_added: '1.9'
+    subset:
+      description: is the list a subset of this other list
+      name: subset
+      version_added: '2.4'
+    succeeded:
+      description: check task success
+      name: succeeded
+      version_added: '1.9'
+    success:
+      description: check task success
+      name: success
+      version_added: '1.9'
+    successful:
+      description: check task success
+      name: successful
+      version_added: '1.9'
+    superset:
+      description: is the list a superset of this other list
+      name: superset
+      version_added: '2.4'
+    truthy:
+      description: Pythonic true
+      name: truthy
+      version_added: '2.10'
+    unreachable:
+      description: Did task end due to the host was unreachable
+      name: unreachable
+      version_added: '1.9'
+    uri:
+      description: is the string a valid URI
+      name: uri
+      version_added: '2.14'
+    url:
+      description: is the string a valid URL
+      name: url
+      version_added: '2.14'
+    urn:
+      description: is the string a valid URN
+      name: urn
+      version_added: '2.14'
+    vault_encrypted:
+      description: Is this an encrypted vault
+      name: vault_encrypted
+      version_added: '2.10'
+    version:
+      description: compare version strings
+      name: version
+      version_added: '1.6'
+    version_compare:
+      description: compare version strings
+      name: version_compare
+      version_added: '1.6'
+  vars:
+    host_group_vars:
+      description: In charge of loading group_vars and host_vars
+      name: host_group_vars
+      version_added: '2.4'
+version: 1.0.0

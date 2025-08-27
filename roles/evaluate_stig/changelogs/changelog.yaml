@@ -1,0 +1,26 @@
+ancestor: null
+releases:
+  1.0.0:
+    changes:
+      major_changes:
+      - dynamic_execution - Implemented execution of the evaluate STIG and tested
+        against RHEL 7, RHEL 8, RHEL 9, and Windows systems.
+      release_summary: "This is the initial release of the ADP Evaluate STIG role
+        that leverages ADP canes-sustainment-software Package Registry to sync the
+        \nEvaluate STIG PowerShell tool and the PowerShell tar files required to execute
+        the tool. The role has been tested to execute and\ngenerate reports against
+        RHEL 7, RHEL 8, RHEL 9, and Windows systems.\nCompletion date: 14 JAN 2025.\n"
+    codename: Evaluate STIG Tool
+    fragments:
+    - 1.0.0.yml
+    - CANES-82078-update-evaluate-stig-for-canes-v1.3.x.yml
+    modules:
+    - description: Add or remove an apt key
+      name: apt_key
+      namespace: ''
+    plugins:
+      lookup:
+      - description: generate a list based on a number sequence
+        name: sequence
+        namespace: null
+    release_date: '2025-02-10'

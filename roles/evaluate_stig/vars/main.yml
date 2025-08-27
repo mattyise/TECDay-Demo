@@ -1,0 +1,5 @@
+---
+# vars file for Evaluate-STIGs
+transfer_host: FS01
+transfer_user: sa.adp
+transfer_password: '{{ aap_win_server_admin_pwd }}'

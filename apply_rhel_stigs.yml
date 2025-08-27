@@ -145,32 +145,6 @@
         - { regexp: '^#?\s*unlock_time', line: 'unlock_time = 900' }  # 15 minute lockout
         - { regexp: '^#?\s*fail_interval', line: 'fail_interval = 900' }  # Within 15 minutes
 
-    - name: Create STIG compliance report
-      copy:
-        content: |
-          STIG Compliance Report
-          ======================
-          Date: {{ ansible_date_time.iso8601 }}
-          Host: {{ ansible_hostname }}
-          
-          Applied STIGs:
-          - V-71859/V-71861/V-71863: Login banners configured
-          - V-71953: Password minimum length set to 15
-          - V-71911: Password complexity requirements enabled
-          - V-71931: Password history set to remember 5
-          - V-71965: Ctrl-Alt-Del reboot disabled
-          - V-71993: Shell timeout set to 15 minutes
-          - V-72225: System updates applied
-          - V-72067: Insecure services disabled
-          - V-72077: Firewall enabled
-          - V-71969: Firewall default deny configured
-          - V-71849: System file permissions secured
-          - V-71937: Account lockout policy configured
-        dest: /root/stig_compliance_report.txt
-        owner: root
-        group: root
-        mode: '0600'
-
   handlers:
     - name: restart sshd
       systemd:

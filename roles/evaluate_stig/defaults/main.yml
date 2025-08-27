@@ -1,0 +1,4 @@
+---
+# defaults file for Evaluate-STIGs
+windows_destination_path: '\\FS01\ADP\Reports\Evaluate_STIG'
+linux_destination_path: '{{ persistent_data }}/audit'

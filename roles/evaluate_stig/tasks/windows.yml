@@ -1,0 +1,133 @@
+- name: Ensure destination directory exists
+  ansible.windows.win_file:
+    path: '{{ destination_path }}/{{ phase_path }}'
+    state: directory
+
+# in case of failure before cleanup, the cleanup will not occur at the end so adding a cleanup task here
+- name: Find all Evaluate-STIG directories
+  ansible.windows.win_find:
+    paths: '{{ execution_path }}'
+    patterns: 'Evaluate-STIG_*'
+    file_type: directory
+  register: used_evaluate_stig_directories
+
+- name: Clean up previous Evaluate-STIG directories
+  ansible.windows.win_file:
+    path: '{{ item.path }}'
+    state: absent
+  loop: '{{ used_evaluate_stig_directories.files }}'
+
+- name: Find all Evaluate-STIG files
+  ansible.windows.win_find:
+    paths: '{{ execution_path }}'
+    patterns: 'Evaluate-STIG_*'
+    file_type: file
+  register: used_evaluate_stig_files
+
+- name: Clean up previous Evaluate-STIG files
+  ansible.windows.win_file:
+    path: '{{ item.path }}'
+    state: absent
+  loop: '{{ used_evaluate_stig_files.files }}'
+
+# Copy and extract the Evaluate-STIG, powershell archive to the remote host
+- name: Find the most recent Evaluate-STIG archive
+  ansible.builtin.find:
+    paths: '{{ persistent_data }}/software/dsl'
+    patterns: 'Evaluate-STIG_*.zip'
+    file_type: file
+    age: 0
+    age_stamp: mtime
+  register: zip_files
+  delegate_to: localhost
+  connection: local
+
+- name: Ensure Evaluate-STIG file is found
+  ansible.builtin.fail:
+    msg: 'No Evaluate-STIG_<version>.zip file found!'
+  when: zip_files.files | length == 0
+
+- name: Get the most recent evaluate stig file
+  ansible.builtin.set_fact:
+    most_recent_evaluate_stig_binary: '{{ zip_files.files | sort(attribute="mtime", reverse=true) | first }}'
+
+- name: Transfer Evaluate-STIG zip file
+  ansible.windows.win_copy:
+    src: '{{ most_recent_evaluate_stig_binary.path }}'
+    dest: '{{ execution_path }}'
+
+- name: Ensure destination folder exists to extract Evaluate-STIG
+  ansible.windows.win_file:
+    path: '{{ execution_path }}/{{ most_recent_evaluate_stig_binary.path | basename | regex_replace(".zip$", "") }}'
+    state: directory
+
+- name: Extract the ZIP file on host
+  community.windows.win_unzip:
+    src: '{{ execution_path }}/{{ most_recent_evaluate_stig_binary.path | basename }}'
+    dest: '{{ execution_path }}/{{ most_recent_evaluate_stig_binary.path | basename | regex_replace(".zip$", "") }}'
+
+# Execute the evaluate tool on the remote host
+- name: Run Evaluate-STIG on remote Windows host
+  ansible.windows.win_powershell:
+    script: |
+      & '{{ execution_path }}\{{ most_recent_evaluate_stig_binary.path | basename | regex_replace(".zip$", "") }}\Evaluate-STIG\{{ evaluate_stig_command }}' -output '{{ evaluate_stig_output }}' -outputPath '{{ destination_path }}/{{ phase_path }}'
+  async: 1200 # Timeout after 20 minutes
+  poll: 15
+  register: stig_result
+  ignore_errors: yes
+  become: true
+
+# Extract STIG results
+- name: Read HTML file using slurp
+  ansible.builtin.slurp:
+    src: '{{ destination_path }}/{{ phase_path }}/{{ inventory_hostname | upper }}/SummaryReport.html'
+  register: html_file
+
+- name: Decode HTML content
+  ansible.builtin.set_fact:
+    html_content: "{{ html_file.content | b64decode }}"
+
+- name: Extract the stig names
+  ansible.builtin.set_fact:
+    stig_names: >-
+      {{ html_content | regex_findall('<a.*class="stig_button".*>(.*?)</a>', '\\1') }}
+
+- name: Extract the stig scores
+  ansible.builtin.set_fact:
+    stig_scores: >-
+      {{ stig_scores | default({}) | combine({item: html_content | regex_findall(item + '(?:[\s\S]*?(\d+(?:\.\d+)?%)(?:(?:\s+)?<\/td>)[\s\S]*?)</tr>', '\\1') | first }) }}
+  loop: '{{ stig_names }}'
+
+# Clean up
+- name: Find all Evaluate-STIG directories
+  ansible.windows.win_find:
+    paths: '{{ execution_path }}'
+    patterns: 'Evaluate-STIG_*'
+    file_type: directory
+  register: used_evaluate_stig_directories
+
+- name: Clean up previous Evaluate-STIG directories
+  ansible.windows.win_file:
+    path: '{{ item.path }}'
+    state: absent
+  loop: '{{ used_evaluate_stig_directories.files }}'
+
+- name: Find all Evaluate-STIG files
+  ansible.windows.win_find:
+    paths: '{{ execution_path }}'
+    patterns: 'Evaluate-STIG_*'
+    file_type: file
+  register: used_evaluate_stig_files
+
+- name: Clean up previous Evaluate-STIG files
+  ansible.windows.win_file:
+    path: '{{ item.path }}'
+    state: absent
+  loop: '{{ used_evaluate_stig_files.files }}'
+
+# Display STIG Results
+- name: Display STIG scores
+  ansible.builtin.debug:
+    msg: |
+      {{ item.key }} - {{ item.value }}
+  loop: '{{ stig_scores | dict2items }}'

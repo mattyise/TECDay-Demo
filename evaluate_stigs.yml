@@ -1,0 +1,89 @@
+---
+# Playbook used to execute solely the Evaluate STIG tool across various devices
+- name: "Execute Evaluate STIG Tool"
+  hosts: rhel_demo
+  gather_facts: true
+  vars:
+    evaluate: true  # Runs Evaluate STIG tool to generate report against the target host
+    # Override destinations to save locally instead of FS01
+    windows_destination_path: ""  # Empty string to skip Windows transfer
+    linux_destination_path: "/home/admin/Desktop"
+    persistent_data: "/opt/persistent_data"  # Adjust this path as needed for demo
+
+  # Perform prerequisite checks to ensure execution of roles will run and 
+  # load variables depending on CANES enclaves and baseline
+  pre_tasks:
+    - name: Ensure required variables defined
+      ansible.builtin.assert:
+        that:
+          - persistent_data is defined
+        fail_msg: 'Ensure that the required variables have been provided to continue the execution'
+    
+    - name: Ensure admin Desktop directory exists
+      ansible.builtin.file:
+        path: /home/admin/Desktop
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0755'
+      become: yes
+
+    - name: Find the most recent Evaluate-STIG archive
+      ansible.builtin.find:
+        paths: '{{ persistent_data }}/software/dsl'
+        patterns: 'Evaluate-STIG_*.zip'
+        file_type: file
+        age: 0
+        age_stamp: mtime
+      register: zip_files
+      delegate_to: localhost
+
+    - name: Assert Evaluate_STIG is available to continue execution
+      ansible.builtin.assert:
+        that:
+          - zip_files.files | length > 0
+        fail_msg: 'Ensure Evaluate-STIG tool is available. It can be retrieved from Spork Package Registry managed by the ADP team'
+
+    - name: Set PowerShell major and minor version based on Linux OS version
+      ansible.builtin.set_fact:
+        powershell_major_version: "7"
+        powershell_minor_version: '{{ "2" if ansible_distribution_major_version == "7" else "4" }}'
+
+    - name: Find the most recent powershell tar file
+      ansible.builtin.find:
+        paths: '{{ persistent_data }}/software/dsl'
+        patterns: 'powershell-{{ powershell_major_version }}.{{ powershell_minor_version }}*.tar.gz'
+        file_type: file
+        age: 0
+        age_stamp: mtime
+      register: tar_files
+      delegate_to: localhost
+
+    - name: Assert PowerShell is available to continue execution
+      ansible.builtin.assert:
+        that:
+          - tar_files.files | length > 0
+        fail_msg: 'Ensure PowerShell package is available. It can be retrieved from Spork Package Registry managed by the ADP team'
+
+  tasks:
+    # Generate STIG Report at conclusion
+    - name: Generate reports
+      ansible.builtin.include_role:
+        name: "evaluate_stig"
+      vars:
+        phase_path: 'Single_Reports'
+        # Ensure we don't try to transfer to FS01
+        transfer_host: ""
+        transfer_user: ""
+        transfer_password: ""
+      when: evaluate is true
+    
+    - name: Display evaluation results location
+      ansible.builtin.debug:
+        msg: |
+          STIG evaluation complete!
+          Results saved to: {{ linux_destination_path }}/Single_Reports/{{ inventory_hostname | upper }}
+          
+          Reports generated:
+          - CKL (Checklist) file  
+          - Summary Report (HTML)
