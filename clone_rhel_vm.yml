@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     datacenter_name: "CANES"
-    vm_name: "rhel_demo"
+    vm_name: "rhel-demo"
     vm_ip: "164.191.65.50"
     
   tasks:

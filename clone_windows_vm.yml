@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     datacenter_name: "CANES"
-    vm_name: "windows_demo"
+    vm_name: "windows-demo"
     vm_ip: "164.191.65.51"
     
   tasks:
