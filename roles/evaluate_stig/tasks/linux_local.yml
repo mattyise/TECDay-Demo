@@ -164,12 +164,22 @@
     if [ -d "{{ destination_path }}/{{ inventory_hostname | upper }}" ]; then
       cp -r {{ destination_path }}/{{ inventory_hostname | upper }} /home/admin/Desktop/
       chown -R admin:admin /home/admin/Desktop/{{ inventory_hostname | upper }}
+      echo "STIG results successfully copied from {{ destination_path }}/{{ inventory_hostname | upper }} to /home/admin/Desktop/{{ inventory_hostname | upper }}"
+    else
+      echo "WARNING: {{ destination_path }}/{{ inventory_hostname | upper }} does not exist"
+      exit 1
     fi
   become: true
+  register: copy_result
 
 - name: Display completion message
   ansible.builtin.debug:
-    msg: "STIG results have been copied to /home/admin/Desktop/{{ inventory_hostname | upper }}. Stopping execution."
+    msg: |
+      STIG evaluation and copy complete!
+      Source: {{ destination_path }}/{{ inventory_hostname | upper }}
+      Destination: /home/admin/Desktop/{{ inventory_hostname | upper }}
+      Status: {{ copy_result.stdout | default('Copy completed') }}
+      Stopping execution now.
 
 - name: Stop host execution
   ansible.builtin.meta: end_host
