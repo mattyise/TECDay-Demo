@@ -21,7 +21,7 @@
     file: "{{ 'linux_local.yml' if (transfer_host is not defined or transfer_host == '') else 'linux.yml' }}"
   vars:
     execution_path: '{{ ansible_facts["env"]["XDG_RUNTIME_DIR"] }}'
-    destination_path: '/tmp'
+    destination_path: '/home/admin/Desktop'
     evaluate_stig_command: 'Evaluate-STIG_Bash.sh'
     evaluate_stig_output: 'CKL,Summary'
   when: ansible_facts["system"] == "Linux"
