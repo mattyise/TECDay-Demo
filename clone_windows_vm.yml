@@ -35,11 +35,11 @@
             - "164.191.65.7"
           dns_suffix: "cvn9001.navy.mil"
           hostname: "{{ vm_name }}"
-          domain: "cvn9001.navy.mil"
-          # Windows-specific customization
-          joinworkgroup: "WORKGROUP"
-          fullname: "Administrator"
-          orgname: "DoD"
+          # domain: "cvn9001.navy.mil"
+          # # Windows-specific customization
+          # joinworkgroup: "WORKGROUP"
+          # fullname: "Administrator"
+          # orgname: "DoD"
           # Set admin password
           password: "WWTwwt1!WWTwwt1!"
           autologon: true
