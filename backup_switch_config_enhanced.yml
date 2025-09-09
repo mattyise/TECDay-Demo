@@ -122,4 +122,4 @@
     
     - name: Log backup completion
       debug:
-        msg: "Configuration backup completed for {{ inventory_hostname }} at {{ backup_datetime }}"
+        msg: "Configuration backup completed for {{ inventory_hostname }}"
