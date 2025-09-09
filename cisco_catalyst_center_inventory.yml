@@ -1,0 +1,192 @@
+---
+- name: Cisco Catalyst Center Inventory Demo
+  hosts: localhost
+  gather_facts: false
+  vars:
+    catalyst_center:
+      host: "pnpserver.cvn9001.navy.mil"
+      username: "adm.canes"
+      password: "!Q@W3e4r!Q@W#e4r"
+      validate_certs: false
+      timeout: 30
+
+  tasks:
+    - name: Get authentication token from Catalyst Center
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Basic {{ (catalyst_center.username + ':' + catalyst_center.password) | b64encode }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: 200
+      register: auth_response
+      no_log: true
+
+    - name: Set authentication token
+      set_fact:
+        auth_token: "{{ auth_response.json.Token }}"
+      no_log: true
+
+    - name: Get device inventory from Catalyst Center
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device"
+        method: GET
+        headers:
+          Content-Type: "application/json"
+          X-Auth-Token: "{{ auth_token }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: 200
+      register: inventory_response
+
+    - name: Display inventory summary
+      debug:
+        msg: |
+          ===========================================
+          CISCO CATALYST CENTER INVENTORY SUMMARY
+          ===========================================
+          Total Devices: {{ inventory_response.json.response | length }}
+          Server: {{ catalyst_center.host }}
+          Retrieved at: {{ ansible_date_time.iso8601 }}
+          ===========================================
+
+    - name: Display detailed device information
+      debug:
+        msg: |
+          Device {{ item_index + 1 }}:
+          - Hostname: {{ item.hostname | default('N/A') }}
+          - Management IP: {{ item.managementIpAddress | default('N/A') }}
+          - Device Type: {{ item.type | default('N/A') }}
+          - Platform: {{ item.platformId | default('N/A') }}
+          - Software Version: {{ item.softwareVersion | default('N/A') }}
+          - Serial Number: {{ item.serialNumber | default('N/A') }}
+          - MAC Address: {{ item.macAddress | default('N/A') }}
+          - Role: {{ item.role | default('N/A') }}
+          - Reachability: {{ item.reachabilityStatus | default('N/A') }}
+          - Last Updated: {{ item.lastUpdated | default('N/A') }}
+          ---
+      loop: "{{ inventory_response.json.response }}"
+      loop_control:
+        index_var: item_index
+      when: inventory_response.json.response is defined
+
+    - name: Get site information
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/site"
+        method: GET
+        headers:
+          Content-Type: "application/json"
+          X-Auth-Token: "{{ auth_token }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: 200
+      register: sites_response
+
+    - name: Display site information
+      debug:
+        msg: |
+          ===========================================
+          SITE INFORMATION
+          ===========================================
+          Total Sites: {{ sites_response.json.response | length }}
+      when: sites_response.json.response is defined
+
+    - name: Display site details
+      debug:
+        msg: |
+          Site {{ item_index + 1 }}:
+          - Name: {{ item.name | default('N/A') }}
+          - Site ID: {{ item.id | default('N/A') }}
+          - Type: {{ item.additionalInfo[0].attributes.type | default('N/A') }}
+          - Address: {{ item.additionalInfo[0].attributes.address | default('N/A') }}
+          ---
+      loop: "{{ sites_response.json.response }}"
+      loop_control:
+        index_var: item_index
+      when: 
+        - sites_response.json.response is defined
+        - item.additionalInfo is defined
+        - item.additionalInfo | length > 0
+
+    - name: Get network health summary
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-health"
+        method: GET
+        headers:
+          Content-Type: "application/json"
+          X-Auth-Token: "{{ auth_token }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: [200, 404]
+      register: health_response
+      ignore_errors: true
+
+    - name: Display network health summary
+      debug:
+        msg: |
+          ===========================================
+          NETWORK HEALTH SUMMARY
+          ===========================================
+          Health Score: {{ health_response.json.response[0].healthScore | default('N/A') }}%
+          Total Count: {{ health_response.json.response[0].totalCount | default('N/A') }}
+          Good Count: {{ health_response.json.response[0].goodCount | default('N/A') }}
+          Fair Count: {{ health_response.json.response[0].fairCount | default('N/A') }}
+          Poor Count: {{ health_response.json.response[0].poorCount | default('N/A') }}
+          ===========================================
+      when: 
+        - health_response.status == 200
+        - health_response.json.response is defined
+        - health_response.json.response | length > 0
+
+    - name: Create inventory report file
+      copy:
+        content: |
+          # Cisco Catalyst Center Inventory Report
+          Generated: {{ ansible_date_time.iso8601 }}
+          Server: {{ catalyst_center.host }}
+          
+          ## Device Summary
+          Total Devices: {{ inventory_response.json.response | length }}
+          
+          ## Device Details
+          {% for device in inventory_response.json.response %}
+          ### Device {{ loop.index }}
+          - **Hostname:** {{ device.hostname | default('N/A') }}
+          - **Management IP:** {{ device.managementIpAddress | default('N/A') }}
+          - **Device Type:** {{ device.type | default('N/A') }}
+          - **Platform:** {{ device.platformId | default('N/A') }}
+          - **Software Version:** {{ device.softwareVersion | default('N/A') }}
+          - **Serial Number:** {{ device.serialNumber | default('N/A') }}
+          - **Role:** {{ device.role | default('N/A') }}
+          - **Reachability:** {{ device.reachabilityStatus | default('N/A') }}
+          
+          {% endfor %}
+          
+          ## Site Summary
+          Total Sites: {{ sites_response.json.response | length | default('N/A') }}
+          
+          {% if health_response.status == 200 and health_response.json.response is defined %}
+          ## Network Health
+          - **Health Score:** {{ health_response.json.response[0].healthScore | default('N/A') }}%
+          - **Total Devices:** {{ health_response.json.response[0].totalCount | default('N/A') }}
+          - **Good:** {{ health_response.json.response[0].goodCount | default('N/A') }}
+          - **Fair:** {{ health_response.json.response[0].fairCount | default('N/A') }}
+          - **Poor:** {{ health_response.json.response[0].poorCount | default('N/A') }}
+          {% endif %}
+        dest: "./catalyst_center_inventory_report.md"
+      when: inventory_response.json.response is defined
+
+    - name: Display completion message
+      debug:
+        msg: |
+          ===========================================
+          DEMO COMPLETED SUCCESSFULLY!
+          ===========================================
+          ✓ Connected to Catalyst Center: {{ catalyst_center.host }}
+          ✓ Retrieved device inventory
+          ✓ Retrieved site information  
+          ✓ Retrieved network health data
+          ✓ Generated report: catalyst_center_inventory_report.md
+          ===========================================
