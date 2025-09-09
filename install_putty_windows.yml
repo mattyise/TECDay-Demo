@@ -15,10 +15,10 @@
           - "Hostname: {{ ansible_hostname }}"
           - "Domain: {{ ansible_domain }}"
           
-    - name: Check if PuTTY is already installed
-      win_reg_stat:
-        path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1
-      register: putty_installed
+    # - name: Check if PuTTY is already installed
+    #   win_reg_stat:
+    #     path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1
+    #   register: putty_installed
       
     - name: Display PuTTY installation status
       debug:
