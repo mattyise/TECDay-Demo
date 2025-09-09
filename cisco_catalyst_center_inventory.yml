@@ -30,12 +30,12 @@
         use_proxy: no
         use_netrc: no
       register: auth
-      no_log: true
+      no_log: false
 
     - name: Extract token
       ansible.builtin.set_fact:
         dnac_token: "{{ auth.json.Token | default(auth.json.token) | default(auth.json.accessToken) }}"
-      no_log: true
+      no_log: false
 
     - name: Assert token present
       ansible.builtin.assert:
