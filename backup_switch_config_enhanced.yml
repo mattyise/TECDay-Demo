@@ -4,11 +4,15 @@
   gather_facts: true
   vars:
     backup_dir: "/home/admin/Switch_Configs/{{ inventory_hostname }}"
-    timestamp: "{{ ansible_date_time.epoch }}"
     rhel_username: "{{ OS_USERNAME }}"
     rhel_password: "{{ OS_PASSWORD }}"
   
   tasks:
+    - name: Generate timestamp for backup files
+      set_fact:
+        timestamp: "{{ ansible_date_time.epoch }}"
+      run_once: true
+      
     - name: Ensure Switch_Configs base directory exists
       file:
         path: /home/admin/Switch_Configs
