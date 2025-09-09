@@ -2,6 +2,7 @@
 - name: Cisco Catalyst Center Inventory Demo
   hosts: localhost
   gather_facts: false
+
   vars:
     catalyst_center:
       host: "pnpserver.cvn9001.navy.mil"
@@ -10,7 +11,6 @@
       validate_certs: false
       timeout: 30
 
-  # minimal facts for timestamps only
   pre_tasks:
     - name: Collect minimal facts for time only
       setup:
@@ -19,16 +19,22 @@
           - '!min'
           - 'date_time'
 
-    - name: Preflight - resolve and TCP check
+    - name: Preflight TCP 443 check
       wait_for:
         host: "{{ catalyst_center.host }}"
         port: 443
         timeout: 5
       register: tcp_check
-      failed_when: not tcp_check.elapsed is defined
+      failed_when: tcp_check is not defined or tcp_check.elapsed is not defined
       changed_when: false
 
   tasks:
+    - name: Init holders
+      set_fact:
+        devices: []
+        sites: []
+
+    # Primary token attempt
     - name: Get authentication token from Catalyst Center
       ansible.builtin.uri:
         url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
@@ -40,42 +46,104 @@
           Accept: "application/json"
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 401]   # let us inspect 401
+        status_code: [200, 401]
         return_content: true
-        use_proxy: no             # <— important
-        use_netrc: no             # <— important
-      register: auth_response
+        use_proxy: no
+        use_netrc: no
+      register: auth_primary
       no_log: true
 
-    - name: Show why we got 401
-      debug:
+    # If 401, print safe details
+    - name: Show 401 details
+      ansible.builtin.debug:
         msg: |
-          Status: {{ auth_response.status }}
-          WWW-Authenticate: {{ auth_response.www_authenticate | default(auth_response.headers['WWW-Authenticate'] | default('N/A')) }}
-          Gateway: {{ auth_response.headers.via | default('N/A') }}
-      when: auth_response.status == 401
+          Status: {{ auth_primary.status | default('N/A') }}
+          Header keys: {{ auth_primary.headers.keys() | list | default([]) }}
+          WWW-Authenticate: {{ auth_primary.headers['WWW-Authenticate'] | default('N/A') }}
+          Location: {{ auth_primary.headers.Location | default('N/A') }}
+          Body first 200 bytes: {{ (auth_primary.content | default(''))[:200] }}
+      when: auth_primary.status == 401
       no_log: false
 
-    - name: Extract auth token (handle casing differences)
-      set_fact:
-        auth_token: >-
-          {{ auth_response.json.Token
-             | default(auth_response.json.token)
-             | default(auth_response.json.accessToken)
-             | default(auth_response.json.AccessToken)
+    # Fallback A explicit Authorization header
+    - name: Fallback A auth with explicit Authorization header
+      ansible.builtin.uri:
+        url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
+        method: POST
+        headers:
+          Accept: "application/json"
+          Authorization: "Basic {{ (catalyst_center.username ~ ':' ~ catalyst_center.password) | b64encode }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: [200, 401]
+        return_content: true
+        use_proxy: no
+        use_netrc: no
+      register: auth_fallback_a
+      when: auth_primary.status == 401
+      no_log: true
+
+    # Fallback B legacy token path
+    - name: Fallback B legacy token path
+      ansible.builtin.uri:
+        url: "https://{{ catalyst_center.host }}/api/system/v1/auth/token"
+        method: POST
+        url_username: "{{ catalyst_center.username }}"
+        url_password: "{{ catalyst_center.password }}"
+        force_basic_auth: true
+        headers:
+          Accept: "application/json"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: [200, 401]
+        return_content: true
+        use_proxy: no
+        use_netrc: no
+      register: auth_fallback_b
+      when: (auth_primary.status | default(401)) == 401
+      no_log: true
+
+    # Choose first 200
+    - name: Choose successful auth response if any
+      ansible.builtin.set_fact:
+        auth_ok: >-
+          {{
+            auth_primary if auth_primary.status == 200 else
+            (auth_fallback_a if (auth_fallback_a is defined and auth_fallback_a.status == 200) else
+            (auth_fallback_b if (auth_fallback_b is defined and auth_fallback_b.status == 200) else omit))
           }}
-      no_log: false
+      no_log: true
 
-    - name: Fail early if no token parsed
-      assert:
+    - name: Fail if no auth was successful
+      ansible.builtin.assert:
         that:
-          - auth_token is string
-          - auth_token | length > 0
-        fail_msg: "Authentication succeeded but token not found in response. Enable temporary debugging to inspect auth_response."
+          - auth_ok is defined
+        fail_msg: >-
+          Token request returned 401 on all tried endpoints. Likely SSO or gateway policy blocking Basic API auth, or creds/role invalid. See 401 debug above.
 
-    - name: Get device inventory (first page)
-      uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device?offset=1&limit=500"
+    # Parse token safely only from JSON
+    - name: Extract auth token safely
+      vars:
+        parsed: "{{ auth_ok.json | default({}) }}"
+      ansible.builtin.set_fact:
+        auth_token: >-
+          {{ parsed.Token
+             | default(parsed.token)
+             | default(parsed.accessToken)
+             | default(parsed.AccessToken)
+             | default('') }}
+      no_log: true
+
+    - name: Assert token present
+      ansible.builtin.assert:
+        that:
+          - auth_token | length > 0
+        fail_msg: "Authentication succeeded but token not found in response payload."
+
+    # Inventory
+    - name: Get device inventory
+      ansible.builtin.uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device?offset=0&limit=500"
         method: GET
         headers:
           Accept: "application/json"
@@ -83,6 +151,7 @@
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
+        use_proxy: no
       register: inventory_response
 
     - name: Normalize device list
@@ -91,9 +160,13 @@
           {{ (inventory_response.json.response
               | default(inventory_response.json.devices)
               | default([])) }}
+      when:
+        - inventory_response is defined
+        - inventory_response.status == 200
 
+    # Sites
     - name: Get site information
-      uri:
+      ansible.builtin.uri:
         url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/site"
         method: GET
         headers:
@@ -102,17 +175,20 @@
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
+        use_proxy: no
       register: sites_response
       failed_when: false
 
     - name: Normalize site list
       set_fact:
         sites: "{{ sites_response.json.response | default([]) }}"
+      when: sites_response is defined
 
-    - name: Get network health summary (most platforms require timestamp in ms)
+    # Health
+    - name: Get network health summary
       vars:
         ts_ms: "{{ (ansible_date_time.epoch | int) * 1000 }}"
-      uri:
+      ansible.builtin.uri:
         url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-health?timestamp={{ ts_ms }}"
         method: GET
         headers:
@@ -121,9 +197,11 @@
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: [200, 404]
+        use_proxy: no
       register: health_response
       failed_when: false
 
+    # Summaries
     - name: Inventory summary
       debug:
         msg: |
@@ -164,14 +242,14 @@
           Total Sites: {{ sites | length }}
       when: sites | length > 0
 
-    - name: Site details (defensive parsing)
+    - name: Site details
       debug:
         msg: |
           Site {{ idx + 1 }}:
           - Name: {{ item.name | default('N/A') }}
           - Site ID: {{ item.id | default('N/A') }}
-          - Type: {{ (item.additionalInfo | default([]) | first).attributes.type | default('N/A') }}
-          - Address: {{ (item.additionalInfo | default([]) | first).attributes.address | default('N/A') }}
+          - Type: {{ (((item.additionalInfo | default([])) | first | default({})).attributes.type) | default('N/A') }}
+          - Address: {{ (((item.additionalInfo | default([])) | first | default({})).attributes.address) | default('N/A') }}
           ---
       loop: "{{ sites }}"
       loop_control:
@@ -236,7 +314,7 @@
       debug:
         msg: |
           ===========================================
-          DEMO COMPLETED SUCCESSFULLY!
+          DEMO COMPLETED SUCCESSFULLY
           ===========================================
           ✓ Connected to Catalyst Center: {{ catalyst_center.host }}
           ✓ Retrieved device inventory
