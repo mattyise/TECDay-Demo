@@ -22,12 +22,12 @@
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
       register: auth_response
-      no_log: true
+      no_log: false
 
     - name: Set authentication token
       set_fact:
         auth_token: "{{ auth_response.json.Token }}"
-      no_log: true
+      no_log: false
 
     - name: Get device inventory from Catalyst Center
       uri:
