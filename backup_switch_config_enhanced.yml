@@ -11,6 +11,7 @@
     - name: Generate timestamp for backup files
       set_fact:
         timestamp: "{{ ansible_date_time.epoch }}"
+      delegate_to: localhost
       run_once: true
       
     - name: Ensure Switch_Configs base directory exists
