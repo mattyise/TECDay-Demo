@@ -30,10 +30,9 @@
 
   tasks:
     - name: Get authentication token from Catalyst Center
-      uri:
+      ansible.builtin.uri:
         url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
         method: POST
-        # Prefer Ansible's basic auth path over hand-rolled header
         url_username: "{{ catalyst_center.username }}"
         url_password: "{{ catalyst_center.password }}"
         force_basic_auth: true
@@ -41,10 +40,21 @@
           Accept: "application/json"
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
-        status_code: 200
+        status_code: [200, 401]   # let us inspect 401
         return_content: true
+        use_proxy: no             # <— important
+        use_netrc: no             # <— important
       register: auth_response
-      no_log: false  # do not print creds or token
+      no_log: true
+
+    - name: Show why we got 401
+      debug:
+        msg: |
+          Status: {{ auth_response.status }}
+          WWW-Authenticate: {{ auth_response.www_authenticate | default(auth_response.headers['WWW-Authenticate'] | default('N/A')) }}
+          Gateway: {{ auth_response.headers.via | default('N/A') }}
+      when: auth_response.status == 401
+      no_log: false
 
     - name: Extract auth token (handle casing differences)
       set_fact:
