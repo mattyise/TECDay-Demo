@@ -1,5 +1,5 @@
 ---
-- name: Cisco Catalyst Center Inventory Demo
+- name: Cisco Catalyst Center auth smoke test
   hosts: localhost
   gather_facts: false
 
@@ -8,34 +8,12 @@
       host: "pnpserver.cvn9001.navy.mil"
       username: "adm.canes"
       password: "!Q@W3e4r!Q@W#e4r"
-      validate_certs: false
+      validate_certs: false        # set true with ca_path if you trust the DNAC CA
+      ca_path: null                # e.g. "/etc/pki/ca-trust/source/anchors/dnac-ca.pem"
       timeout: 30
 
-  pre_tasks:
-    - name: Collect minimal facts for time only
-      setup:
-        gather_subset:
-          - '!all'
-          - '!min'
-          - 'date_time'
-
-    - name: Preflight TCP 443 check
-      wait_for:
-        host: "{{ catalyst_center.host }}"
-        port: 443
-        timeout: 5
-      register: tcp_check
-      failed_when: tcp_check is not defined or tcp_check.elapsed is not defined
-      changed_when: false
-
   tasks:
-    - name: Init holders
-      set_fact:
-        devices: []
-        sites: []
-
-    # Primary token attempt
-    - name: Get authentication token from Catalyst Center
+    - name: Get API token
       ansible.builtin.uri:
         url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
         method: POST
@@ -45,283 +23,43 @@
         headers:
           Accept: "application/json"
         validate_certs: "{{ catalyst_center.validate_certs }}"
+        ca_path: "{{ catalyst_center.ca_path | default(omit) }}"
         timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 401]
+        status_code: 200
         return_content: true
-        return_headers: yes
         use_proxy: no
         use_netrc: no
-      register: auth_primary
+      register: auth
       no_log: true
 
-    # If 401, print safe details
-    - name: Show 401 details
-      ansible.builtin.debug:
-        msg: |
-          Status: {{ auth_primary.get('status', 'N/A') }}
-          Header keys: {{ (auth_primary.get('headers', {}) | dict2items | map(attribute='key') | list) }}
-          WWW-Authenticate: {{ auth_primary.get('headers', {}).get('WWW-Authenticate', 'N/A') }}
-          Location: {{ auth_primary.get('headers', {}).get('Location', 'N/A') }}
-          Body first 200 bytes: {{ (auth_primary.get('content',''))[:200] }}
-      when: (auth_primary.get('status', 0)) == 401
-      no_log: false
-
-    # Fallback A explicit Authorization header
-    - name: Fallback A auth with explicit Authorization header
-      ansible.builtin.uri:
-        url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
-        method: POST
-        headers:
-          Accept: "application/json"
-          Authorization: "Basic {{ (catalyst_center.username ~ ':' ~ catalyst_center.password) | b64encode }}"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 401]
-        return_content: true
-        return_headers: yes
-        use_proxy: no
-        use_netrc: no
-      register: auth_fallback_a
-      when: (auth_primary.get('status', 0)) == 401
-      no_log: true
-
-    # Fallback B legacy token path
-    - name: Fallback B legacy token path
-      ansible.builtin.uri:
-        url: "https://{{ catalyst_center.host }}/api/system/v1/auth/token"
-        method: POST
-        url_username: "{{ catalyst_center.username }}"
-        url_password: "{{ catalyst_center.password }}"
-        force_basic_auth: true
-        headers:
-          Accept: "application/json"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 401]
-        return_content: true
-        return_headers: yes
-        use_proxy: no
-        use_netrc: no
-      register: auth_fallback_b
-      when: (auth_primary.get('status', 0)) == 401
-      no_log: true
-
-    # Choose first 200
-    - name: Choose successful auth response if any
+    - name: Extract token
       ansible.builtin.set_fact:
-        auth_ok: >-
-          {{
-            auth_primary if auth_primary.get('status', 0) == 200 else
-            (auth_fallback_a if (auth_fallback_a is defined and auth_fallback_a.get('status', 0) == 200) else
-            (auth_fallback_b if (auth_fallback_b is defined and auth_fallback_b.get('status', 0) == 200) else omit))
-          }}
-      no_log: true
-
-    - name: Fail if no auth was successful
-      ansible.builtin.assert:
-        that:
-          - auth_ok is defined
-        fail_msg: >-
-          Token request returned 401 on all tried endpoints. Likely SSO or gateway policy blocking Basic API auth, or creds/role invalid. See 401 debug above.
-
-    # Parse token safely only from JSON
-    - name: Extract auth token safely
-      vars:
-        parsed: "{{ auth_ok.json | default({}) }}"
-      ansible.builtin.set_fact:
-        auth_token: >-
-          {{ parsed.Token
-             | default(parsed.token)
-             | default(parsed.accessToken)
-             | default(parsed.AccessToken)
-             | default('') }}
+        dnac_token: "{{ auth.json.Token | default(auth.json.token) | default(auth.json.accessToken) }}"
       no_log: true
 
     - name: Assert token present
       ansible.builtin.assert:
         that:
-          - auth_token | length > 0
-        fail_msg: "Authentication succeeded but token not found in response payload."
+          - dnac_token is string
+          - dnac_token | length > 0
+        fail_msg: "Auth succeeded but no token field returned."
 
-    # Inventory
-    - name: Get device inventory
+    - name: Prove auth by calling /version
       ansible.builtin.uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device?offset=0&limit=500"
+        url: "https://{{ catalyst_center.host }}/dna/system/api/v1/version"
         method: GET
         headers:
           Accept: "application/json"
-          X-Auth-Token: "{{ auth_token }}"
+          X-Auth-Token: "{{ dnac_token }}"
         validate_certs: "{{ catalyst_center.validate_certs }}"
+        ca_path: "{{ catalyst_center.ca_path | default(omit) }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
+        return_content: true
         use_proxy: no
-      register: inventory_response
+        use_netrc: no
+      register: ver
 
-    - name: Normalize device list
-      set_fact:
-        devices: >-
-          {{ (inventory_response.json.response
-              | default(inventory_response.json.devices)
-              | default([])) }}
-      when:
-        - inventory_response is defined
-        - inventory_response.status == 200
-
-    # Sites
-    - name: Get site information
-      ansible.builtin.uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/site"
-        method: GET
-        headers:
-          Accept: "application/json"
-          X-Auth-Token: "{{ auth_token }}"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: 200
-        use_proxy: no
-      register: sites_response
-      failed_when: false
-
-    - name: Normalize site list
-      set_fact:
-        sites: "{{ sites_response.json.response | default([]) }}"
-      when: sites_response is defined
-
-    # Health
-    - name: Get network health summary
-      vars:
-        ts_ms: "{{ (ansible_date_time.epoch | int) * 1000 }}"
-      ansible.builtin.uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-health?timestamp={{ ts_ms }}"
-        method: GET
-        headers:
-          Accept: "application/json"
-          X-Auth-Token: "{{ auth_token }}"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 404]
-        use_proxy: no
-      register: health_response
-      failed_when: false
-
-    # Summaries
-    - name: Inventory summary
-      debug:
-        msg: |
-          ===========================================
-          CISCO CATALYST CENTER INVENTORY SUMMARY
-          ===========================================
-          Total Devices: {{ devices | length }}
-          Server: {{ catalyst_center.host }}
-          Retrieved at: {{ ansible_date_time.iso8601 }}
-          ===========================================
-
-    - name: Detailed device info
-      debug:
-        msg: |
-          Device {{ idx + 1 }}:
-          - Hostname: {{ item.hostname | default('N/A') }}
-          - Management IP: {{ item.managementIpAddress | default('N/A') }}
-          - Device Type: {{ item.type | default('N/A') }}
-          - Platform: {{ item.platformId | default('N/A') }}
-          - Software Version: {{ item.softwareVersion | default('N/A') }}
-          - Serial Number: {{ item.serialNumber | default('N/A') }}
-          - MAC Address: {{ item.macAddress | default('N/A') }}
-          - Role: {{ item.role | default('N/A') }}
-          - Reachability: {{ item.reachabilityStatus | default('N/A') }}
-          - Last Updated: {{ item.lastUpdated | default('N/A') }}
-          ---
-      loop: "{{ devices }}"
-      loop_control:
-        index_var: idx
-      when: devices | length > 0
-
-    - name: Site summary
-      debug:
-        msg: |
-          ===========================================
-          SITE INFORMATION
-          ===========================================
-          Total Sites: {{ sites | length }}
-      when: sites | length > 0
-
-    - name: Site details
-      debug:
-        msg: |
-          Site {{ idx + 1 }}:
-          - Name: {{ item.name | default('N/A') }}
-          - Site ID: {{ item.id | default('N/A') }}
-          - Type: {{ (((item.additionalInfo | default([])) | first | default({})).attributes.type) | default('N/A') }}
-          - Address: {{ (((item.additionalInfo | default([])) | first | default({})).attributes.address) | default('N/A') }}
-          ---
-      loop: "{{ sites }}"
-      loop_control:
-        index_var: idx
-      when: sites | length > 0
-
-    - name: Network health summary
-      debug:
-        msg: |
-          ===========================================
-          NETWORK HEALTH SUMMARY
-          ===========================================
-          Health Score: {{ health_response.json.response[0].healthScore | default('N/A') }}%
-          Total Count: {{ health_response.json.response[0].totalCount | default('N/A') }}
-          Good Count: {{ health_response.json.response[0].goodCount | default('N/A') }}
-          Fair Count: {{ health_response.json.response[0].fairCount | default('N/A') }}
-          Poor Count: {{ health_response.json.response[0].poorCount | default('N/A') }}
-          ===========================================
-      when:
-        - health_response.status == 200
-        - health_response.json.response is defined
-        - health_response.json.response | length > 0
-
-    - name: Create inventory report file
-      copy:
-        content: |
-          # Cisco Catalyst Center Inventory Report
-          Generated: {{ ansible_date_time.iso8601 }}
-          Server: {{ catalyst_center.host }}
-
-          ## Device Summary
-          Total Devices: {{ devices | length }}
-
-          ## Device Details
-          {% for device in devices %}
-          ### Device {{ loop.index }}
-          - **Hostname:** {{ device.hostname | default('N/A') }}
-          - **Management IP:** {{ device.managementIpAddress | default('N/A') }}
-          - **Device Type:** {{ device.type | default('N/A') }}
-          - **Platform:** {{ device.platformId | default('N/A') }}
-          - **Software Version:** {{ device.softwareVersion | default('N/A') }}
-          - **Serial Number:** {{ device.serialNumber | default('N/A') }}
-          - **Role:** {{ device.role | default('N/A') }}
-          - **Reachability:** {{ device.reachabilityStatus | default('N/A') }}
-          {% endfor %}
-
-          ## Site Summary
-          Total Sites: {{ sites | length }}
-
-          {% if health_response.status == 200 and health_response.json.response is defined %}
-          ## Network Health
-          - **Health Score:** {{ health_response.json.response[0].healthScore | default('N/A') }}%
-          - **Total Devices:** {{ health_response.json.response[0].totalCount | default('N/A') }}
-          - **Good:** {{ health_response.json.response[0].goodCount | default('N/A') }}
-          - **Fair:** {{ health_response.json.response[0].fairCount | default('N/A') }}
-          - **Poor:** {{ health_response.json.response[0].poorCount | default('N/A') }}
-          {% endif %}
-        dest: "./catalyst_center_inventory_report.md"
-      when: devices | length > 0
-
-    - name: Display completion message
-      debug:
-        msg: |
-          ===========================================
-          DEMO COMPLETED SUCCESSFULLY
-          ===========================================
-          ✓ Connected to Catalyst Center: {{ catalyst_center.host }}
-          ✓ Retrieved device inventory
-          ✓ Retrieved site information
-          ✓ Retrieved network health data
-          ✓ Generated report: catalyst_center_inventory_report.md
-          ===========================================
+    - name: Auth OK
+      ansible.builtin.debug:
+        msg: "Authenticated. Catalyst Center version: {{ ver.json.version | default('unknown') }}"
