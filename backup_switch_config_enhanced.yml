@@ -8,15 +8,6 @@
     rhel_password: "{{ OS_PASSWORD }}"
   
   tasks:
-    - name: Generate timestamp for backup files
-      delegate_to: localhost
-      run_once: true
-      vars:
-        ts_fmt: "%Y%m%d_%H%M%S"
-        human_fmt: "%Y-%m-%d %H:%M:%S"
-      set_fact:
-        timestamp: "{{ now() | strftime(ts_fmt) }}"
-        backup_datetime: "{{ now() | strftime(human_fmt) }}"
       
     - name: Ensure Switch_Configs base directory exists
       file:
@@ -66,7 +57,7 @@
     - name: Save running configuration
       copy:
         content: "{{ config_data.stdout[0] }}"
-        dest: "{{ backup_dir }}/running-config_{{ timestamp }}.txt"
+        dest: "{{ backup_dir }}/running-config.txt"
         mode: '0640'
       delegate_to: rhel-demo
       vars:
@@ -77,7 +68,7 @@
     - name: Save version information
       copy:
         content: "{{ config_data.stdout[1] }}"
-        dest: "{{ backup_dir }}/version_info_{{ timestamp }}.txt"
+        dest: "{{ backup_dir }}/version_info.txt"
         mode: '0640'
       delegate_to: rhel-demo
       vars:
@@ -88,7 +79,7 @@
     - name: Save inventory information
       copy:
         content: "{{ config_data.stdout[2] }}"
-        dest: "{{ backup_dir }}/inventory_{{ timestamp }}.txt"
+        dest: "{{ backup_dir }}/inventory.txt"
         mode: '0640'
       delegate_to: rhel-demo
       vars:
@@ -99,7 +90,7 @@
     - name: Save interface status
       copy:
         content: "{{ config_data.stdout[3] }}"
-        dest: "{{ backup_dir }}/interface_status_{{ timestamp }}.txt"
+        dest: "{{ backup_dir }}/interface_status.txt"
         mode: '0640'
       delegate_to: rhel-demo
       vars:
@@ -118,11 +109,11 @@
           IOS Version: {{ switch_facts.ansible_facts.ansible_net_version | default('Unknown') }}
           
           Files Backed Up:
-          - running-config_{{ timestamp }}.txt
-          - version_info_{{ timestamp }}.txt
-          - inventory_{{ timestamp }}.txt
-          - interface_status_{{ timestamp }}.txt
-        dest: "{{ backup_dir }}/backup_summary_{{ timestamp }}.txt"
+          - running-config.txt
+          - version_info.txt
+          - inventory.txt
+          - interface_status.txt
+        dest: "{{ backup_dir }}/backup_summary.txt"
         mode: '0640'
       delegate_to: rhel-demo
       vars:
