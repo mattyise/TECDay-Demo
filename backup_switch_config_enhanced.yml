@@ -29,7 +29,7 @@
         state: directory
         owner: admin
         group: admin
-        mode: '0750'
+        mode: '0755'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
@@ -58,7 +58,7 @@
       copy:
         content: "{{ config_data.stdout[0] }}"
         dest: "{{ backup_dir }}/running-config.txt"
-        mode: '0640'
+        mode: '0644'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
@@ -69,7 +69,7 @@
       copy:
         content: "{{ config_data.stdout[1] }}"
         dest: "{{ backup_dir }}/version_info.txt"
-        mode: '0640'
+        mode: '0644'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
@@ -80,7 +80,7 @@
       copy:
         content: "{{ config_data.stdout[2] }}"
         dest: "{{ backup_dir }}/inventory.txt"
-        mode: '0640'
+        mode: '0644'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
@@ -91,7 +91,7 @@
       copy:
         content: "{{ config_data.stdout[3] }}"
         dest: "{{ backup_dir }}/interface_status.txt"
-        mode: '0640'
+        mode: '0644'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
@@ -103,7 +103,6 @@
         content: |
           Backup Summary for {{ inventory_hostname }}
           ==========================================
-          Backup Date: {{ backup_datetime }}
           Device Type: {{ switch_facts.ansible_facts.ansible_net_model | default('Unknown') }}
           Serial Number: {{ switch_facts.ansible_facts.ansible_net_serialnum | default('Unknown') }}
           IOS Version: {{ switch_facts.ansible_facts.ansible_net_version | default('Unknown') }}
@@ -114,7 +113,7 @@
           - inventory.txt
           - interface_status.txt
         dest: "{{ backup_dir }}/backup_summary.txt"
-        mode: '0640'
+        mode: '0644'
       delegate_to: rhel-demo
       vars:
         ansible_user: "{{ rhel_username }}"
