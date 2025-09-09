@@ -48,6 +48,7 @@
         timeout: "{{ catalyst_center.timeout }}"
         status_code: [200, 401]
         return_content: true
+        return_headers: yes
         use_proxy: no
         use_netrc: no
       register: auth_primary
@@ -57,12 +58,12 @@
     - name: Show 401 details
       ansible.builtin.debug:
         msg: |
-          Status: {{ auth_primary.status | default('N/A') }}
-          Header keys: {{ auth_primary.headers.keys() | list | default([]) }}
-          WWW-Authenticate: {{ auth_primary.headers['WWW-Authenticate'] | default('N/A') }}
-          Location: {{ auth_primary.headers.Location | default('N/A') }}
-          Body first 200 bytes: {{ (auth_primary.content | default(''))[:200] }}
-      when: auth_primary.status == 401
+          Status: {{ auth_primary.get('status', 'N/A') }}
+          Header keys: {{ (auth_primary.get('headers', {}) | dict2items | map(attribute='key') | list) }}
+          WWW-Authenticate: {{ auth_primary.get('headers', {}).get('WWW-Authenticate', 'N/A') }}
+          Location: {{ auth_primary.get('headers', {}).get('Location', 'N/A') }}
+          Body first 200 bytes: {{ (auth_primary.get('content',''))[:200] }}
+      when: (auth_primary.get('status', 0)) == 401
       no_log: false
 
     # Fallback A explicit Authorization header
@@ -77,10 +78,11 @@
         timeout: "{{ catalyst_center.timeout }}"
         status_code: [200, 401]
         return_content: true
+        return_headers: yes
         use_proxy: no
         use_netrc: no
       register: auth_fallback_a
-      when: auth_primary.status == 401
+      when: (auth_primary.get('status', 0)) == 401
       no_log: true
 
     # Fallback B legacy token path
@@ -97,10 +99,11 @@
         timeout: "{{ catalyst_center.timeout }}"
         status_code: [200, 401]
         return_content: true
+        return_headers: yes
         use_proxy: no
         use_netrc: no
       register: auth_fallback_b
-      when: (auth_primary.status | default(401)) == 401
+      when: (auth_primary.get('status', 0)) == 401
       no_log: true
 
     # Choose first 200
@@ -108,9 +111,9 @@
       ansible.builtin.set_fact:
         auth_ok: >-
           {{
-            auth_primary if auth_primary.status == 200 else
-            (auth_fallback_a if (auth_fallback_a is defined and auth_fallback_a.status == 200) else
-            (auth_fallback_b if (auth_fallback_b is defined and auth_fallback_b.status == 200) else omit))
+            auth_primary if auth_primary.get('status', 0) == 200 else
+            (auth_fallback_a if (auth_fallback_a is defined and auth_fallback_a.get('status', 0) == 200) else
+            (auth_fallback_b if (auth_fallback_b is defined and auth_fallback_b.get('status', 0) == 200) else omit))
           }}
       no_log: true
 
