@@ -43,13 +43,28 @@
           - "Last modified: {{ rpm_file_stat.stat.mtime }}"
       when: rpm_file_stat.stat.exists
       
+    - name: Create temporary directory on target host
+      file:
+        path: /tmp/software
+        state: directory
+        mode: '0755'
+      when: sublime_installed.rc != 0 and rpm_file_stat.stat.exists
+      
+    - name: Copy Sublime Text RPM to target host
+      copy:
+        src: "{{ sublime_rpm_path }}"
+        dest: /tmp/software/sublime-text-4200-1.x86_64.rpm
+        mode: '0644'
+      register: rpm_copy
+      when: sublime_installed.rc != 0 and rpm_file_stat.stat.exists
+      
     - name: Install Sublime Text from RPM
       yum:
-        name: "{{ sublime_rpm_path }}"
+        name: /tmp/software/sublime-text-4200-1.x86_64.rpm
         state: present
         disable_gpg_check: yes
       register: sublime_install
-      when: sublime_installed.rc != 0 and rpm_file_stat.stat.exists
+      when: sublime_installed.rc != 0 and rpm_copy is succeeded
       become: yes
       
     - name: Verify Sublime Text installation
@@ -170,3 +185,10 @@
           - "  - Sufficient privileges for installation"
           - "  - Network connectivity if dependencies are needed"
       when: not sublime_exe_stat.stat.exists
+      
+    - name: Cleanup temporary RPM file
+      file:
+        path: /tmp/software/sublime-text-4200-1.x86_64.rpm
+        state: absent
+      when: rpm_copy is defined and sublime_install is changed
+      tags: cleanup
