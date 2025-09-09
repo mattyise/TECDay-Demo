@@ -61,7 +61,7 @@
       wait_for:
         host: "{{ vm_ip }}"
         port: 5985  # WinRM HTTP port
-        delay: 5
+        delay: 1
         timeout: 300
         state: started
       delegate_to: localhost
