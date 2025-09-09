@@ -1,0 +1,172 @@
+---
+- name: Install Sublime Text on RHEL Demo VM
+  hosts: rhel-demo
+  gather_facts: true
+  vars:
+    sublime_rpm_path: "/opt/canes/persistent_data/software/sublime-text-4200-1.x86_64.rpm"
+    
+  tasks:
+    - name: Display system information
+      debug:
+        msg:
+          - "Operating System: {{ ansible_os_family }}"
+          - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Hostname: {{ ansible_hostname }}"
+          - "Kernel: {{ ansible_kernel }}"
+          
+    - name: Check if Sublime Text is already installed
+      command: rpm -q sublime-text
+      register: sublime_installed
+      failed_when: false
+      changed_when: false
+      
+    - name: Display Sublime Text installation status
+      debug:
+        msg: "Sublime Text is {{ 'already installed' if sublime_installed.rc == 0 else 'not installed' }}"
+        
+    - name: Verify RPM file exists
+      stat:
+        path: "{{ sublime_rpm_path }}"
+      register: rpm_file_stat
+      
+    - name: Fail if RPM file does not exist
+      fail:
+        msg: "Sublime Text RPM file not found at {{ sublime_rpm_path }}"
+      when: not rpm_file_stat.stat.exists
+      
+    - name: Display RPM file information
+      debug:
+        msg:
+          - "RPM file found: {{ sublime_rpm_path }}"
+          - "File size: {{ rpm_file_stat.stat.size }} bytes"
+          - "Last modified: {{ rpm_file_stat.stat.mtime }}"
+      when: rpm_file_stat.stat.exists
+      
+    - name: Install Sublime Text from RPM
+      yum:
+        name: "{{ sublime_rpm_path }}"
+        state: present
+        disable_gpg_check: yes
+      register: sublime_install
+      when: sublime_installed.rc != 0 and rpm_file_stat.stat.exists
+      become: yes
+      
+    - name: Verify Sublime Text installation
+      command: rpm -q sublime-text
+      register: sublime_verify
+      changed_when: false
+      when: sublime_install is changed
+      
+    - name: Check if Sublime Text executable exists
+      stat:
+        path: /opt/sublime_text/sublime_text
+      register: sublime_exe_stat
+      
+    - name: Create symbolic link for easier command line access
+      file:
+        src: /opt/sublime_text/sublime_text
+        dest: /usr/local/bin/subl
+        state: link
+      become: yes
+      when: sublime_exe_stat.stat.exists
+      
+    - name: Create desktop entry for Sublime Text
+      copy:
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Sublime Text
+          GenericName=Text Editor
+          Comment=Sophisticated text editor for code, markup and prose
+          Exec=/opt/sublime_text/sublime_text %F
+          Terminal=false
+          MimeType=text/plain;text/x-chdr;text/x-csrc;text/x-c++hdr;text/x-c++src;text/x-java;text/x-dsrc;text/x-pascal;text/x-perl;text/x-python;application/x-php;application/x-httpd-php3;application/x-httpd-php4;application/x-httpd-php5;application/x-ruby;text/x-diff;text/x-shellscript;application/javascript;application/json;text/css;text/html;text/xml;application/xml;application/xhtml+xml;
+          Icon=sublime-text
+          Categories=TextEditor;Development;
+          StartupNotify=true
+          Actions=Window;Document;
+          
+          [Desktop Action Window]
+          Name=New Window
+          Exec=/opt/sublime_text/sublime_text -n
+          OnlyShowIn=Unity;
+          
+          [Desktop Action Document]
+          Name=New File
+          Exec=/opt/sublime_text/sublime_text --command new_file
+          OnlyShowIn=Unity;
+        dest: /usr/share/applications/sublime_text.desktop
+        mode: '0644'
+      become: yes
+      when: sublime_exe_stat.stat.exists
+      
+    - name: Get Sublime Text version information
+      command: /opt/sublime_text/sublime_text --version
+      register: sublime_version
+      changed_when: false
+      when: sublime_exe_stat.stat.exists
+      
+    - name: Create installation report
+      copy:
+        content: |
+          Sublime Text Installation Report
+          ===============================
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }}
+          
+          Installation Details:
+          - Hostname: {{ ansible_hostname }}
+          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          - Architecture: {{ ansible_architecture }}
+          - Kernel: {{ ansible_kernel }}
+          - Sublime Text Version: {{ sublime_version.stdout | default('Unknown') }}
+          - Installation Path: /opt/sublime_text
+          - RPM Source: {{ sublime_rpm_path }}
+          
+          Configuration:
+          - Desktop Entry Created: Yes
+          - Command Line Shortcut: /usr/local/bin/subl -> /opt/sublime_text/sublime_text
+          - Executable Size: {{ sublime_exe_stat.stat.size | default('Unknown') }} bytes
+          
+          Post-Installation Actions:
+          - Users can run 'subl' from command line
+          - Desktop application entry available in Applications menu
+          - MIME types associated for common file formats
+        dest: /tmp/sublime_text_installation_report.txt
+        mode: '0644'
+      when: sublime_exe_stat.stat.exists
+      
+    - name: Test Sublime Text command availability
+      command: which subl
+      register: subl_location
+      changed_when: false
+      failed_when: false
+      
+    - name: Display installation summary
+      debug:
+        msg:
+          - "===== Sublime Text Installation Complete ====="
+          - "Sublime Text has been successfully installed"
+          - "Installation path: /opt/sublime_text"
+          - "Command line access: {{ subl_location.stdout | default('Not available') }}"
+          - "Desktop entry created in Applications menu"
+          - "Version: {{ sublime_version.stdout | default('Unknown') }}"
+          - "Installation report saved to: /tmp/sublime_text_installation_report.txt"
+          - ""
+          - "Usage:"
+          - "  - Run 'subl' from terminal to open Sublime Text"
+          - "  - Run 'subl filename' to open a specific file"
+          - "  - Find 'Sublime Text' in Applications menu"
+      when: sublime_exe_stat.stat.exists
+      
+    - name: Display installation failure message
+      debug:
+        msg:
+          - "===== Sublime Text Installation Failed ====="
+          - "Please check the following:"
+          - "  - RPM file exists at: {{ sublime_rpm_path }}"
+          - "  - Sufficient privileges for installation"
+          - "  - Network connectivity if dependencies are needed"
+      when: not sublime_exe_stat.stat.exists
