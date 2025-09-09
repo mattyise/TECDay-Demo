@@ -10,52 +10,125 @@
       validate_certs: false
       timeout: 30
 
+  # minimal facts for timestamps only
+  pre_tasks:
+    - name: Collect minimal facts for time only
+      setup:
+        gather_subset:
+          - '!all'
+          - '!min'
+          - 'date_time'
+
+    - name: Preflight - resolve and TCP check
+      wait_for:
+        host: "{{ catalyst_center.host }}"
+        port: 443
+        timeout: 5
+      register: tcp_check
+      failed_when: not tcp_check.elapsed is defined
+      changed_when: false
+
   tasks:
     - name: Get authentication token from Catalyst Center
       uri:
         url: "https://{{ catalyst_center.host }}/dna/system/api/v1/auth/token"
         method: POST
+        # Prefer Ansible's basic auth path over hand-rolled header
+        url_username: "{{ catalyst_center.username }}"
+        url_password: "{{ catalyst_center.password }}"
+        force_basic_auth: true
         headers:
-          Content-Type: "application/json"
-          Authorization: "Basic {{ (catalyst_center.username + ':' + catalyst_center.password) | b64encode }}"
+          Accept: "application/json"
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
+        return_content: true
       register: auth_response
-      no_log: false
+      no_log: false  # do not print creds or token
 
-    - name: Set authentication token
+    - name: Extract auth token (handle casing differences)
       set_fact:
-        auth_token: "{{ auth_response.json.Token }}"
+        auth_token: >-
+          {{ auth_response.json.Token
+             | default(auth_response.json.token)
+             | default(auth_response.json.accessToken)
+             | default(auth_response.json.AccessToken)
+          }}
       no_log: false
 
-    - name: Get device inventory from Catalyst Center
+    - name: Fail early if no token parsed
+      assert:
+        that:
+          - auth_token is string
+          - auth_token | length > 0
+        fail_msg: "Authentication succeeded but token not found in response. Enable temporary debugging to inspect auth_response."
+
+    - name: Get device inventory (first page)
       uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device"
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-device?offset=1&limit=500"
         method: GET
         headers:
-          Content-Type: "application/json"
+          Accept: "application/json"
           X-Auth-Token: "{{ auth_token }}"
         validate_certs: "{{ catalyst_center.validate_certs }}"
         timeout: "{{ catalyst_center.timeout }}"
         status_code: 200
       register: inventory_response
 
-    - name: Display inventory summary
+    - name: Normalize device list
+      set_fact:
+        devices: >-
+          {{ (inventory_response.json.response
+              | default(inventory_response.json.devices)
+              | default([])) }}
+
+    - name: Get site information
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/site"
+        method: GET
+        headers:
+          Accept: "application/json"
+          X-Auth-Token: "{{ auth_token }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: 200
+      register: sites_response
+      failed_when: false
+
+    - name: Normalize site list
+      set_fact:
+        sites: "{{ sites_response.json.response | default([]) }}"
+
+    - name: Get network health summary (most platforms require timestamp in ms)
+      vars:
+        ts_ms: "{{ (ansible_date_time.epoch | int) * 1000 }}"
+      uri:
+        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-health?timestamp={{ ts_ms }}"
+        method: GET
+        headers:
+          Accept: "application/json"
+          X-Auth-Token: "{{ auth_token }}"
+        validate_certs: "{{ catalyst_center.validate_certs }}"
+        timeout: "{{ catalyst_center.timeout }}"
+        status_code: [200, 404]
+      register: health_response
+      failed_when: false
+
+    - name: Inventory summary
       debug:
         msg: |
           ===========================================
           CISCO CATALYST CENTER INVENTORY SUMMARY
           ===========================================
-          Total Devices: {{ inventory_response.json.response | length }}
+          Total Devices: {{ devices | length }}
           Server: {{ catalyst_center.host }}
           Retrieved at: {{ ansible_date_time.iso8601 }}
           ===========================================
 
-    - name: Display detailed device information
+    - name: Detailed device info
       debug:
         msg: |
-          Device {{ item_index + 1 }}:
+          Device {{ idx + 1 }}:
           - Hostname: {{ item.hostname | default('N/A') }}
           - Management IP: {{ item.managementIpAddress | default('N/A') }}
           - Device Type: {{ item.type | default('N/A') }}
@@ -67,63 +140,35 @@
           - Reachability: {{ item.reachabilityStatus | default('N/A') }}
           - Last Updated: {{ item.lastUpdated | default('N/A') }}
           ---
-      loop: "{{ inventory_response.json.response }}"
+      loop: "{{ devices }}"
       loop_control:
-        index_var: item_index
-      when: inventory_response.json.response is defined
+        index_var: idx
+      when: devices | length > 0
 
-    - name: Get site information
-      uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/site"
-        method: GET
-        headers:
-          Content-Type: "application/json"
-          X-Auth-Token: "{{ auth_token }}"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: 200
-      register: sites_response
-
-    - name: Display site information
+    - name: Site summary
       debug:
         msg: |
           ===========================================
           SITE INFORMATION
           ===========================================
-          Total Sites: {{ sites_response.json.response | length }}
-      when: sites_response.json.response is defined
+          Total Sites: {{ sites | length }}
+      when: sites | length > 0
 
-    - name: Display site details
+    - name: Site details (defensive parsing)
       debug:
         msg: |
-          Site {{ item_index + 1 }}:
+          Site {{ idx + 1 }}:
           - Name: {{ item.name | default('N/A') }}
           - Site ID: {{ item.id | default('N/A') }}
-          - Type: {{ item.additionalInfo[0].attributes.type | default('N/A') }}
-          - Address: {{ item.additionalInfo[0].attributes.address | default('N/A') }}
+          - Type: {{ (item.additionalInfo | default([]) | first).attributes.type | default('N/A') }}
+          - Address: {{ (item.additionalInfo | default([]) | first).attributes.address | default('N/A') }}
           ---
-      loop: "{{ sites_response.json.response }}"
+      loop: "{{ sites }}"
       loop_control:
-        index_var: item_index
-      when: 
-        - sites_response.json.response is defined
-        - item.additionalInfo is defined
-        - item.additionalInfo | length > 0
+        index_var: idx
+      when: sites | length > 0
 
-    - name: Get network health summary
-      uri:
-        url: "https://{{ catalyst_center.host }}/dna/intent/api/v1/network-health"
-        method: GET
-        headers:
-          Content-Type: "application/json"
-          X-Auth-Token: "{{ auth_token }}"
-        validate_certs: "{{ catalyst_center.validate_certs }}"
-        timeout: "{{ catalyst_center.timeout }}"
-        status_code: [200, 404]
-      register: health_response
-      ignore_errors: true
-
-    - name: Display network health summary
+    - name: Network health summary
       debug:
         msg: |
           ===========================================
@@ -135,7 +180,7 @@
           Fair Count: {{ health_response.json.response[0].fairCount | default('N/A') }}
           Poor Count: {{ health_response.json.response[0].poorCount | default('N/A') }}
           ===========================================
-      when: 
+      when:
         - health_response.status == 200
         - health_response.json.response is defined
         - health_response.json.response | length > 0
@@ -146,12 +191,12 @@
           # Cisco Catalyst Center Inventory Report
           Generated: {{ ansible_date_time.iso8601 }}
           Server: {{ catalyst_center.host }}
-          
+
           ## Device Summary
-          Total Devices: {{ inventory_response.json.response | length }}
-          
+          Total Devices: {{ devices | length }}
+
           ## Device Details
-          {% for device in inventory_response.json.response %}
+          {% for device in devices %}
           ### Device {{ loop.index }}
           - **Hostname:** {{ device.hostname | default('N/A') }}
           - **Management IP:** {{ device.managementIpAddress | default('N/A') }}
@@ -161,12 +206,11 @@
           - **Serial Number:** {{ device.serialNumber | default('N/A') }}
           - **Role:** {{ device.role | default('N/A') }}
           - **Reachability:** {{ device.reachabilityStatus | default('N/A') }}
-          
           {% endfor %}
-          
+
           ## Site Summary
-          Total Sites: {{ sites_response.json.response | length | default('N/A') }}
-          
+          Total Sites: {{ sites | length }}
+
           {% if health_response.status == 200 and health_response.json.response is defined %}
           ## Network Health
           - **Health Score:** {{ health_response.json.response[0].healthScore | default('N/A') }}%
@@ -176,7 +220,7 @@
           - **Poor:** {{ health_response.json.response[0].poorCount | default('N/A') }}
           {% endif %}
         dest: "./catalyst_center_inventory_report.md"
-      when: inventory_response.json.response is defined
+      when: devices | length > 0
 
     - name: Display completion message
       debug:
@@ -186,7 +230,7 @@
           ===========================================
           ✓ Connected to Catalyst Center: {{ catalyst_center.host }}
           ✓ Retrieved device inventory
-          ✓ Retrieved site information  
+          ✓ Retrieved site information
           ✓ Retrieved network health data
           ✓ Generated report: catalyst_center_inventory_report.md
           ===========================================
