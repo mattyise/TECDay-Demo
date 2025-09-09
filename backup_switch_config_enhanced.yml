@@ -1,7 +1,7 @@
 ---
 - name: Backup Cisco Switch Configuration - Enhanced for DoD
   hosts: SWITCH-2960
-  gather_facts: true
+  gather_facts: false
   vars:
     backup_dir: "/home/admin/Switch_Configs/{{ inventory_hostname }}"
     rhel_username: "{{ OS_USERNAME }}"
@@ -9,10 +9,14 @@
   
   tasks:
     - name: Generate timestamp for backup files
-      set_fact:
-        timestamp: "{{ ansible_date_time.epoch }}"
       delegate_to: localhost
       run_once: true
+      vars:
+        ts_fmt: "%Y%m%d_%H%M%S"
+        human_fmt: "%Y-%m-%d %H:%M:%S"
+      set_fact:
+        timestamp: "{{ now() | strftime(ts_fmt) }}"
+        backup_datetime: "{{ now() | strftime(human_fmt) }}"
       
     - name: Ensure Switch_Configs base directory exists
       file:
@@ -25,7 +29,7 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
       run_once: true
     
     - name: Create backup directory structure on rhel-demo
@@ -39,7 +43,7 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
       run_once: true
     
     - name: Gather switch information
@@ -68,7 +72,7 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
     
     - name: Save version information
       copy:
@@ -79,7 +83,7 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
     
     - name: Save inventory information
       copy:
@@ -90,7 +94,7 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
     
     - name: Save interface status
       copy:
@@ -101,14 +105,14 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
     
     - name: Create backup summary
       copy:
         content: |
           Backup Summary for {{ inventory_hostname }}
           ==========================================
-          Backup Date: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+          Backup Date: {{ backup_datetime }}
           Device Type: {{ switch_facts.ansible_facts.ansible_net_model | default('Unknown') }}
           Serial Number: {{ switch_facts.ansible_facts.ansible_net_serialnum | default('Unknown') }}
           IOS Version: {{ switch_facts.ansible_facts.ansible_net_version | default('Unknown') }}
@@ -124,8 +128,8 @@
       vars:
         ansible_user: "{{ rhel_username }}"
         ansible_password: "{{ rhel_password }}"
-        ansible_become: yes
+        ansible_become: true
     
     - name: Log backup completion
       debug:
-        msg: "Configuration backup completed for {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }}"
+        msg: "Configuration backup completed for {{ inventory_hostname }} at {{ backup_datetime }}"
