@@ -3,15 +3,38 @@
   hosts: SWITCH-2960
   gather_facts: true
   vars:
-    backup_dir: "/opt/canes/persistent_data/{{ inventory_hostname }}"
+    backup_dir: "/home/admin/Switch_Configs/{{ inventory_hostname }}"
     timestamp: "{{ ansible_date_time.epoch }}"
+    rhel_username: "{{ OS_USERNAME }}"
+    rhel_password: "{{ OS_PASSWORD }}"
   
   tasks:
-    - name: Create backup directory structure
+    - name: Ensure Switch_Configs base directory exists
+      file:
+        path: /home/admin/Switch_Configs
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0755'
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
+      run_once: true
+    
+    - name: Create backup directory structure on rhel-demo
       file:
         path: "{{ backup_dir }}"
         state: directory
+        owner: admin
+        group: admin
         mode: '0750'
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
       run_once: true
     
     - name: Gather switch information
@@ -36,28 +59,44 @@
         content: "{{ config_data.stdout[0] }}"
         dest: "{{ backup_dir }}/running-config_{{ timestamp }}.txt"
         mode: '0640'
-      delegate_to: localhost
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
     
     - name: Save version information
       copy:
         content: "{{ config_data.stdout[1] }}"
         dest: "{{ backup_dir }}/version_info_{{ timestamp }}.txt"
         mode: '0640'
-      delegate_to: localhost
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
     
     - name: Save inventory information
       copy:
         content: "{{ config_data.stdout[2] }}"
         dest: "{{ backup_dir }}/inventory_{{ timestamp }}.txt"
         mode: '0640'
-      delegate_to: localhost
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
     
     - name: Save interface status
       copy:
         content: "{{ config_data.stdout[3] }}"
         dest: "{{ backup_dir }}/interface_status_{{ timestamp }}.txt"
         mode: '0640'
-      delegate_to: localhost
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
     
     - name: Create backup summary
       copy:
@@ -76,7 +115,11 @@
           - interface_status_{{ timestamp }}.txt
         dest: "{{ backup_dir }}/backup_summary_{{ timestamp }}.txt"
         mode: '0640'
-      delegate_to: localhost
+      delegate_to: rhel-demo
+      vars:
+        ansible_user: "{{ rhel_username }}"
+        ansible_password: "{{ rhel_password }}"
+        ansible_become: yes
     
     - name: Log backup completion
       debug:
