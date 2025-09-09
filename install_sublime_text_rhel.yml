@@ -25,10 +25,30 @@
       debug:
         msg: "Sublime Text is {{ 'already installed' if sublime_installed.rc == 0 else 'not installed' }}"
         
+    - name: List contents of software directory for debugging
+      command: ls -la /opt/canes/persistent_data/software
+      register: software_dir_contents
+      delegate_to: localhost
+      failed_when: false
+      changed_when: false
+      
+    - name: Display software directory contents
+      debug:
+        msg: 
+          - "Contents of /opt/canes/persistent_data/software:"
+          - "{{ software_dir_contents.stdout_lines }}"
+      when: software_dir_contents.rc == 0
+      
+    - name: Display directory access error
+      debug:
+        msg: "Could not access /opt/canes/persistent_data/software: {{ software_dir_contents.stderr }}"
+      when: software_dir_contents.rc != 0
+      
     - name: Verify RPM file exists
       stat:
         path: "{{ sublime_rpm_path }}"
       register: rpm_file_stat
+      delegate_to: localhost
       
     - name: Fail if RPM file does not exist
       fail:
